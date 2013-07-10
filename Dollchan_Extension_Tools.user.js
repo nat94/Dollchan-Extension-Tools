@@ -7603,7 +7603,8 @@ function ImageBoard() {
 ImageBoard.prototype = {
 	_bDomains: {
 		'kiwiszon.org': [{
-			kiw: { value: true }
+			kiw: { value: true },
+			isBB: { value: true }
 		}],
 		'02ch.net': [{
 			ru: { value: true },
