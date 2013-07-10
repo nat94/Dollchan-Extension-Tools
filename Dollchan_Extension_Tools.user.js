@@ -8581,6 +8581,12 @@ function Initialization() {
 	if(!aib.hasOwnProperty('docExt') && url[4]) {
 		aib.docExt = url[4];
 	}
+	if(aib.kiw) {
+		var postarea = $c('postarea', document);
+		var attentionBar = $t('iframe', postarea);
+		$del(attentionBar);
+		$before(postarea, attentionBar);
+	}
 	dummy = doc.createElement('div');
 	return true;
 }
