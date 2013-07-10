@@ -15,7 +15,7 @@
 (function de_main_func(scriptStorage) {
 var version = '13.7.4.0',
 defaultCfg = {
-	'language':		0,		// script language [0=ru, 1=en]
+	'language':		1,		// script language [0=ru, 1=en]
 	'hideBySpell':	1,		// hide posts by spells
 	'spells':		'',		// user defined spells
 	'menuHiddBtn':	1,		// menu on hide button
