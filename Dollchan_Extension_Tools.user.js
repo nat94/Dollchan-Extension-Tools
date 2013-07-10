@@ -5709,9 +5709,10 @@ PostForm.prototype = {
 		}
 		setTimeout(function(i) {
 			i.src = this._refreshCapSrc(
-				aib._410 ? ('/faptcha.php?board=' + brd) :
-					aib.hid ? ('/securimage/securimage_show.php?' + Math.random()) :
-					aib.kus ? '/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random()
+				aib._410 ? ('/faptcha.php?board=' + brd)
+					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random())
+					: aib.kiw ? ('/captcha.php?' + Math.random())
+					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random())
 					: (img ? img.src : '/' + brd + '/captcha.pl?key=mainpage&amp;dummy=' + Math.random()),
 				TNum || 0
 			);
@@ -7601,6 +7602,9 @@ function ImageBoard() {
 }
 ImageBoard.prototype = {
 	_bDomains: {
+		'kiwiszon.org': [{
+			kiw: { value: true }
+		}],
 		'02ch.net': [{
 			ru: { value: true },
 			timePattern: { value: 'yyyy+nn+dd++w++hh+ii+ss' }
