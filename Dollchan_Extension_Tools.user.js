@@ -223,7 +223,8 @@ Lng = {
 		['Код', 'Code'],
 		['Верхний индекс', 'Superscript'],
 		['Нижний индекс', 'Subscript'],
-		['Цитировать выделенное', 'Quote selected']
+		['Цитировать выделенное', 'Quote selected'],
+		['Моноспейс', 'Monospace']
 	],
 
 	cfgTab: {
@@ -4875,6 +4876,7 @@ function scriptCSS() {
 	gif('#de-btn-sup:empty', p + 'Q3IKpq4YAgZiSQhGByrzn7YURGFGWhxzMuqqBGC7wRUNkeU7nnWNoMosFXKzi8BHs3EQnDRAHLY2e0BxnWfEJkRdT80NNTrliG3aWcBhZhgIAOw==');
 	gif('#de-btn-sub:empty', p + 'R3IKpq4YAgZiSxquujtOCvIUayAkVZEoRcjCu2wbivMw2WaYi7vVYYqMFYq/i8BEM4ZIrYOmpdD49m2VFd2oiUZTORWcNYT9SpnZrTjiML0MBADs=');
 	gif('#de-btn-quote:empty', p + 'L3IKpq4YAYxRUSKguvRzkDkZfWFlicDCqmgYhuGjVO74zlnQlnL98uwqiHr5ODbDxHSE7Y490wxF90eUkepoysRxrMVaUJBzClaEAADs=');
+	gif('#de-btn-aa:empty', 'R0lGODlhFwAWAKEDAAAAAGRkZPDw8P///yH5BAEKAAMALAAAAAAXABYAAAJO3IKpq3YM4Qui2ovryjyrDmpJCH4kZ55YCrQA5r4iUsm1ZQtyeuX9TNHFbMPdyCdDAnW9ZHMpbAlrrilPBcVarliuaqMVJCaRcsBhLhsKADs=');
 
 	// Show/close animation
 	if(nav.Anim) {
@@ -7604,7 +7606,14 @@ ImageBoard.prototype = {
 	_bDomains: {
 		'kiwiszon.org': [{
 			kiw: { value: true },
-			isBB: { value: true }
+			formButtons: { get: function() {
+				return {
+					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa'],
+					'val': ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;', 'aa'],
+					'tag': ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q', 'aa'],
+					'bb': [true, true, true, true, true, true, true, true, false, true]
+				};
+			} }
 		}],
 		'02ch.net': [{
 			ru: { value: true },
