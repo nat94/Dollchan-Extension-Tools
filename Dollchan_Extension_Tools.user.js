@@ -224,7 +224,8 @@ Lng = {
 		['Верхний индекс', 'Superscript'],
 		['Нижний индекс', 'Subscript'],
 		['Цитировать выделенное', 'Quote selected'],
-		['Моноспейс', 'Monospace']
+		['Моноспейс', 'Monospace'],
+		['Cмайлики', 'Emoticons']
 	],
 
 	cfgTab: {
@@ -4877,6 +4878,7 @@ function scriptCSS() {
 	gif('#de-btn-sub:empty', p + 'R3IKpq4YAgZiSxquujtOCvIUayAkVZEoRcjCu2wbivMw2WaYi7vVYYqMFYq/i8BEM4ZIrYOmpdD49m2VFd2oiUZTORWcNYT9SpnZrTjiML0MBADs=');
 	gif('#de-btn-quote:empty', p + 'L3IKpq4YAYxRUSKguvRzkDkZfWFlicDCqmgYhuGjVO74zlnQlnL98uwqiHr5ODbDxHSE7Y490wxF90eUkepoysRxrMVaUJBzClaEAADs=');
 	gif('#de-btn-aa:empty', 'R0lGODlhFwAWAKEDAAAAAGRkZPDw8P///yH5BAEKAAMALAAAAAAXABYAAAJO3IKpq3YM4Qui2ovryjyrDmpJCH4kZ55YCrQA5r4iUsm1ZQtyeuX9TNHFbMPdyCdDAnW9ZHMpbAlrrilPBcVarliuaqMVJCaRcsBhLhsKADs=');
+	gif('#de-btn-emoticon:empty', 'R0lGODlhFwAWAKEDAAAAAGRkZPDw8P///yH5BAEKAAMALAAAAAAXABYAAAJY3IKpq3YM4Qui2ovryjwrDoQh912jCWBllXatlliva60zWMfCC/A8jGDJfDIgZdfBtEo3moCZNBmLwipyat31pNis8rJi3bZgnbJHVoWjucAkAncb4nBDAQA7');
 
 	// Show/close animation
 	if(nav.Anim) {
@@ -5300,6 +5302,32 @@ PostForm.prototype = {
 					$txtInsert(x, '> ' + (
 						start === end ? quotetxt : x.value.substring(start, end)
 					).replace(/\n/gm, '\n> '));
+				} else if(id === 'de-btn-emoticon') {
+					var panel = $id('de-btn-emoticon');
+					var emoticonsDiv = $id('de-div-emoticons');
+					if(emoticonsDiv) {
+						$del(emoticonsDiv);
+					} else {
+						var emoticonsDiv = $new(
+							'div', {
+								'id' : 'de-div-emoticons',
+								'class' : 'reply',
+								'style' : 'width: 240px; position: absolute; border: solid 1px black;'
+							},
+							null);
+						$after(panel, emoticonsDiv);
+						var emoticonsHtml = '';
+						for(var i = 0; i < aib.emoticons.length; i++) {
+							var emoticon = aib.emoticons[i];
+							emoticonsHtml += '<span id="de-btn-emoticon-' + i + '"><img src="' + emoticon.url + '" /></span>';
+						}
+						$html(emoticonsDiv, emoticonsHtml);
+					}
+				} else if(id.startsWith('de-btn-emoticon-')) {
+					var emoticonsDiv = $id('de-div-emoticons');
+					var emoticonId = id.split('-')[3];
+					$txtInsert(x, aib.emoticons[emoticonId].wordfilter);
+					$del(emoticonsDiv);
 				} else {
 					scrtop = x.scrollTop;
 					tag = el.getAttribute('de-tag');
@@ -7608,11 +7636,33 @@ ImageBoard.prototype = {
 			kiw: { value: true },
 			formButtons: { get: function() {
 				return {
-					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa'],
-					'val': ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;', 'aa'],
-					'tag': ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q', 'aa'],
-					'bb': [true, true, true, true, true, true, true, true, false, true]
+					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa', 'emoticon'],
+					'val': ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;', 'aa', '_'],
+					'tag': ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q', 'aa', '_'],
+					'bb': [true, true, true, true, true, true, true, true, false, true, false]
 				};
+			} },
+			emoticons: { get: function() {
+				var root = 'https://kiwiszon.org/css/images/f23/';
+				return [
+					{ wordfilter : '[cool]', url : root +'cool.gif' },
+					{ wordfilter : '[czesc]', url : root + 'lapka.gif' },
+					{ wordfilter : '[csezc]', url : root + 'lapka_druga.gif' },
+					{ wordfilter : '[beksa]', url : root + 'beksa.gif' },
+					{ wordfilter : '[kwiatek]', url : root + 'kwiatek.gif' },
+					{ wordfilter : '[serce]', url : root + 'serduszko.gif' },
+					{ wordfilter : '[spioch]', url : root + 'spioch.gif' },
+					{ wordfilter : '[usta]', url : root + 'usta.gif' },
+					{ wordfilter : '[zly]', url : root + 'zly.gif' },
+					{ wordfilter : '[wsciekly]', url : root + 'wsciekly.gif' },
+					{ wordfilter : '[ziewam]', url : root + 'ziewanie.gif' },
+					{ wordfilter : ':)', url : root + 'usmiech.gif' },
+					{ wordfilter : ':(', url : root + 'smutas.gif' },
+					{ wordfilter : ';)', url : root + 'oczko.gif' },
+					{ wordfilter : ':D', url : root + 'smiech.gif' },
+					{ wordfilter : ':P', url : root + 'jezyk.gif' },
+					{ wordfilter : ':O', url : root + 'pechowiec.gif' }
+				];
 			} }
 		}],
 		'02ch.net': [{
@@ -8142,6 +8192,12 @@ ImageBoard.prototype = {
 		},
 		get formButtons() {
 			return this._formButtons;
+		},
+		get emoticons() {
+			return this._emoticons;
+		},
+		get _emoticons() {
+			return {};
 		},
 		qBan: '',
 		qDelBut: 'input[type="submit"]',
