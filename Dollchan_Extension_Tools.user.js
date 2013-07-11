@@ -5368,7 +5368,7 @@ PostForm.prototype = {
 			this.isQuick = true;
 			this._qArea.appendChild(this._pForm);
 			$disp(this._tReply);
-			if(!TNum && !aib.kus && !aib.hana) {
+			if(!aib.kiw && !TNum && !aib.kus && !aib.hana) {
 				if(this.oeForm) {
 					$del($q('input[name="oek_parent"]', this.oeForm));
 					this.oeForm.insertAdjacentHTML('afterbegin', '<input type="hidden" value="' +
