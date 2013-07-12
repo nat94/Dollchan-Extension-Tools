@@ -7634,6 +7634,7 @@ ImageBoard.prototype = {
 	_bDomains: {
 		'kiwiszon.org': [{
 			kiw: { value: true },
+			moveAttentionBar: { value: true },
 			formButtons: { get: function() {
 				return {
 					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa', 'emoticon'],
@@ -7663,6 +7664,25 @@ ImageBoard.prototype = {
 					{ wordfilter : ':P', url : root + 'jezyk.gif' },
 					{ wordfilter : ':O', url : root + 'pechowiec.gif' }
 				];
+			} }
+		}],
+		'home.pl': [{
+			moveAttentionBar: { value: true },
+			init: { value: function() {
+				var substFun = function(node, atrKey) {
+					var atrVal = node.getAttribute(atrKey);
+					if(atrVal) {
+						var atrVal1 = atrVal.replace('www.krochan.org', 'krochan.home.pl');
+						if(atrVal != atrVal1) {
+							node.setAttribute(atrKey, atrVal1);
+						}
+					}
+				};
+				$each($T('img', document), function(node) { substFun(node, 'src'); });
+				$each($T('link', document), function(node) { substFun(node, 'href'); });
+				$each($T('script', document), function(node) { substFun(node, 'src'); });
+				$each($T('form', document), function(node) { substFun(node, 'action'); });
+				$each($T('a', document), function(node) { substFun(node, 'href'); });
 			} }
 		}],
 		'02ch.net': [{
@@ -8647,7 +8667,7 @@ function Initialization() {
 	if(!aib.hasOwnProperty('docExt') && url[4]) {
 		aib.docExt = url[4];
 	}
-	if(aib.kiw) {
+	if(aib.moveAttentionBar) {
 		var postarea = $c('postarea', document);
 		var attentionBar = $t('iframe', postarea);
 		$del(attentionBar);
