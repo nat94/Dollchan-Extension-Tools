@@ -5398,7 +5398,7 @@ PostForm.prototype = {
 			this.isQuick = true;
 			this._qArea.appendChild(this._pForm);
 			$disp(this._tReply);
-			if(!aib.kiw && !TNum && !aib.kus && !aib.hana) {
+			if(!aib.dontSubstThrId && !TNum && !aib.kus && !aib.hana) {
 				if(this.oeForm) {
 					$del($q('input[name="oek_parent"]', this.oeForm));
 					this.oeForm.insertAdjacentHTML('afterbegin', '<input type="hidden" value="' +
@@ -5740,6 +5740,7 @@ PostForm.prototype = {
 		setTimeout(function(i) {
 			i.src = this._refreshCapSrc(
 				aib._410 ? ('/faptcha.php?board=' + brd)
+					: aib.kie ? ('/faptcha.php?' + Math.random())
 					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random())
 					: aib.kiw ? ('/captcha.php?' + Math.random())
 					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random())
@@ -7634,6 +7635,7 @@ ImageBoard.prototype = {
 	_bDomains: {
 		'kiwiszon.org': [{
 			kiw: { value: true },
+			dontSubstThrId: { value: true },
 			moveAttentionBar: { value: true },
 			formButtons: { get: function() {
 				return {
@@ -7684,6 +7686,10 @@ ImageBoard.prototype = {
 				$each($T('form', document), function(node) { substFun(node, 'action'); });
 				$each($T('a', document), function(node) { substFun(node, 'href'); });
 			} }
+		}],
+		'is-great.org': [{
+			kie: { value: true },
+			dontSubstThrId: { value: true },
 		}],
 		'02ch.net': [{
 			ru: { value: true },
