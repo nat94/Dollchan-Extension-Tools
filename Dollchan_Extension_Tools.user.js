@@ -313,6 +313,11 @@ Lng = {
 		['. Latest: ', ' new post', ' new posts', ' new posts']
 	],
 
+	postingTypes: [
+		['новая тема' ,'new thread'],
+		['ответ на ', 'reply to ']
+	],
+
 	add:			['Добавить', 'Add'],
 	apply:			['Применить', 'Apply'],
 	clear:			['Очистить', 'Clear'],
@@ -5388,6 +5393,10 @@ PostForm.prototype = {
 	},
 	showQuickReply: function(post) {
 		var tNum = post.thr.num;
+		var postTypeIndicator = $id('posttypeindicator');
+		if(postTypeIndicator) {
+			postTypeIndicator.innerHTML = Lng.postingTypes[1][lang] + tNum;
+		}
 		if(this.isQuick) {
 			if(post.wrap.nextElementSibling === this._qArea) {
 				$disp(this._qArea);
@@ -5459,6 +5468,10 @@ PostForm.prototype = {
 			this.showMainReply();
 		} else {
 			$disp(this.pArea);
+		}
+		var postTypeIndicator = $id('posttypeindicator');
+		if(postTypeIndicator) {
+			postTypeIndicator.innerHTML = Lng.postingTypes[0][lang];
 		}
 		$scroll(this.pArea.getBoundingClientRect().top, null, null);
 	},
