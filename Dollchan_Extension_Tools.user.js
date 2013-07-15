@@ -5755,7 +5755,7 @@ PostForm.prototype = {
 				aib._410 ? ('/faptcha.php?board=' + brd)
 					: aib.kie ? ('/faptcha.php?dummy=' + Math.random())
 					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random())
-					: aib.kiw ? ('/captcha.php?dummy=' + Math.random())
+					: (aib.kiw || aib.rak) ? ('/captcha.php?dummy=' + Math.random())
 					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random())
 					: (img ? img.src : '/' + brd + '/captcha.pl?key=mainpage&amp;dummy=' + Math.random()),
 				TNum || 0
@@ -7703,6 +7703,16 @@ ImageBoard.prototype = {
 		'is-great.org': [{
 			kie: { value: true },
 			dontSubstThrId: { value: true },
+		}],
+		'karachan.org': [{
+			rak: { value: true },
+			dontSubstThrId: { value: true },
+			init: { value: function() {
+				var captchaImg = $id('captchaimage');
+				var captchaInput = document.getElementsByName('captcha')[0];
+				$del(captchaImg);
+				$before(captchaInput, captchaImg);
+			} }
 		}],
 		'02ch.net': [{
 			ru: { value: true },
