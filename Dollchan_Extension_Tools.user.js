@@ -5753,9 +5753,9 @@ PostForm.prototype = {
 		setTimeout(function(i) {
 			i.src = this._refreshCapSrc(
 				aib._410 ? ('/faptcha.php?board=' + brd)
-					: aib.kie ? ('/faptcha.php?' + Math.random())
+					: aib.kie ? ('/faptcha.php?dummy=' + Math.random())
 					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random())
-					: aib.kiw ? ('/captcha.php?' + Math.random())
+					: aib.kiw ? ('/captcha.php?dummy=' + Math.random())
 					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random())
 					: (img ? img.src : '/' + brd + '/captcha.pl?key=mainpage&amp;dummy=' + Math.random()),
 				TNum || 0
