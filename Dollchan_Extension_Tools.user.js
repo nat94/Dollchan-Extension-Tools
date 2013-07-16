@@ -7650,6 +7650,10 @@ ImageBoard.prototype = {
 			kiw: { value: true },
 			dontSubstThrId: { value: true },
 			moveAttentionBar: { value: true },
+			init: { value: function() {
+				$each(document.getElementsByClassName('fileinfo'), function(node) { node.setAttribute('class', 'filesize'); } );
+			} },
+			qImgLink: { value: '.filesize > a,.file_thread a' },
 			formButtons: { get: function() {
 				return {
 					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa', 'emoticon'],
