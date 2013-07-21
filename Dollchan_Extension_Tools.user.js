@@ -94,7 +94,8 @@ defaultCfg = {
 	'updScript':	1,		// check for script's update
 	'scrUpdIntrv':	1,		// 		check interval in days (every val+1 day)
 	'textaWidth':	500,	// textarea width
-	'textaHeight':	160		// textarea height
+	'textaHeight':	160,	// textarea height
+	'attBarStyle':	0,		// attention bar style [0=normal, 1=irc]
 },
 
 Lng = {
@@ -211,6 +212,10 @@ Lng = {
 		'language': {
 			sel:		[['Ru', 'En'], ['Ru', 'En']],
 			txt:		['', '']
+		},
+		'attBarStyle':		{
+			sel:		[['Normal', 'IRC'], ['Normal', 'IRC']],
+			txt:		['Attention bar style', 'Attention bar style']
 		}
 	},
 
@@ -1870,7 +1875,11 @@ function getCfgForm() {
 			$if(pr.passw, lBox('noPassword', false, function() {
 				$disp(pr.passw.parentNode.parentNode);
 			}))
-		])
+		]),
+		optSel('attBarStyle', true, function() {
+			saveCfg('attBarStyle', this.selectedIndex);
+			changeAttentionBarStyle();
+		}),
 	]);
 }
 
@@ -7648,8 +7657,22 @@ ImageBoard.prototype = {
 	_bDomains: {
 		'kiwiszon.org': [{
 			kiw: { value: true },
+			attentionBar: { value: {
+				barLength: 2835,
+				inputName: 'guwniaki',
+				postAction: '/guwniaki.php',
+				hiddenInput: null,
+				clearMsg: 'wyczyść pasek',
+				setAttentionBarLocation: function(attentionBar) {
+					var dancingPope = $t('embed', document);
+					if(dancingPope) {
+						$after(dancingPope.parentNode, attentionBar);
+					} else {
+						$after($c('logo', document), attentionBar);
+					}
+				}
+			} },
 			dontSubstThrId: { value: true },
-			moveAttentionBar: { value: true },
 			init: { value: function() {
 				$each(document.getElementsByClassName('fileinfo'), function(node) { node.setAttribute('class', 'filesize'); } );
 			} },
@@ -7686,7 +7709,21 @@ ImageBoard.prototype = {
 			} }
 		}],
 		'home.pl': [{
-			moveAttentionBar: { value: true },
+			attentionBar: { value: {
+				barLength: 2835,
+				inputName: 'atencja',
+				hiddenInput: 'spie=w_pawlaczu',
+				postAction: '/atencja.php',
+				clearMsg: 'wyczyść pasek',
+				setAttentionBarLocation: function(attentionBar) {
+					var dancingPope = $t('embed', document);
+					if(dancingPope) {
+						$after(dancingPope.parentNode, attentionBar);
+					} else {
+						$after($c('logo', document), attentionBar);
+					}
+				}
+			} },
 			init: { value: function() {
 				var substFun = function(node, atrKey) {
 					var atrVal = node.getAttribute(atrKey);
@@ -8700,12 +8737,6 @@ function Initialization() {
 	if(!aib.hasOwnProperty('docExt') && url[4]) {
 		aib.docExt = url[4];
 	}
-	if(aib.moveAttentionBar) {
-		var postarea = $c('postarea', document);
-		var attentionBar = $t('iframe', postarea);
-		$del(attentionBar);
-		$before(postarea, attentionBar);
-	}
 	dummy = doc.createElement('div');
 	return true;
 }
@@ -9085,6 +9116,180 @@ function initPage() {
 	updater = new initThreadUpdater(doc.title, TNum && Cfg['updThread'] === 1);
 }
 
+//============================================================================================================
+//                                              ATTENTION BAR
+//============================================================================================================
+
+function changeAttentionBarStyle() {
+	if(!aib.attentionBar) {
+		return;
+	}
+	if($id('attentionBarContainer')) {
+		$del($id('attentionBarContainer'));
+	}
+	var attentionBar = $t('iframe', document);
+	if(attentionBar && attentionBar.src.indexOf(aib.attentionBar.postAction) >= 0) {
+		$del(attentionBar);
+	}
+	if(Cfg['attBarStyle'] === 0) {
+		setNormalAttentionBarStyle();
+	} else if(Cfg['attBarStyle'] === 1) {
+		setIrcAttentionBarStyle();
+	} else if(Cfg['attBarStyle'] === 2) {
+		setMerchantbookAttentionBarStyle();
+	}
+}
+
+function findContentInResponse(response) {
+	var startNeedle = '<div';
+	var midNeedle = '>';
+	var endNeedle = '</div>';
+	var startPos = response.indexOf(startNeedle);
+	var midPos = response.indexOf(midNeedle, startPos) + 1;
+	var endPos = response.indexOf(endNeedle, midPos);
+	var content = '';
+	if(startPos >= 0 && midPos >= 0 && endPos >= 0) {
+		content = response.substr(midPos, endPos - midPos);
+	}
+	return content;
+}
+
+function getAttentionBarContent(callback) {
+	$xhr({
+		'method': 'GET',
+		'url': aib.attentionBar.postAction,
+		'onreadystatechange': function(xhr) {
+			if(xhr.readyState !== 4) {
+				return;
+			}
+			if(xhr.status === 200) {
+				var newContent = findContentInResponse(xhr.responseText);
+				callback(newContent);
+			} else {
+				$alert(
+					xhr.status === 0 ? Lng.noConnect[lang] : 'HTTP [' + xhr.status + '] ' + xhr.statusText,
+					'upload', false
+				);
+			}
+		}
+	});
+}
+
+function postAttentionBarContent(content, callback) {
+	var encoded = encodeURIComponent(content);
+	while(encoded.length > aib.attentionBar.barLength && encoded.indexOf('|') > 0) {
+		encoded = encoded.substr(encoded.indexOf('|')+1);
+	}
+	if(encoded.length > aib.attentionBar.barLength) encoded.substr(0, aib.attentionBar.barLength);
+
+	var data = aib.attentionBar.inputName + "=" + encoded;
+	if(aib.attentionBar.hiddenInput) {
+		data = aib.attentionBar.hiddenInput + "&" + data;
+	}
+	$xhr({
+		'method': 'POST',
+		'headers': {'Content-type': 'application/x-www-form-urlencoded'},
+		'data': data,
+		'url': aib.attentionBar.postAction,
+		'onreadystatechange': function(xhr) {
+			if(xhr.readyState !== 4) {
+				return;
+			}
+			if(xhr.status === 200) {
+				var newContent = findContentInResponse(xhr.responseText);
+				callback(newContent);
+			} else {
+				$alert(
+					xhr.status === 0 ? Lng.noConnect[lang] : 'HTTP [' + xhr.status + '] ' + xhr.statusText,
+					'upload', false
+				);
+			}
+		}
+	});
+}
+
+function formatAttentionBarContent(content) {
+	var htmlSoFar = '';
+	var splitted = content.split('|');
+	for(var i = 0; i <= splitted.length; i++) {
+		if(splitted[i]) {
+			htmlSoFar += '<div><b>Anonymous</b>: '+splitted[i].trim()+'</div>';
+		}
+	}
+	return htmlSoFar;
+}
+
+function setAttentionBarContent(container, content, doCleanInput) {
+	var formattedContent = formatAttentionBarContent(content);
+	$id('attentionBox').innerHTML = formattedContent;
+	$id('attentionPrevContent').innerHTML = content;
+	if(doCleanInput) {
+		$id('attentionInput').value = '';
+	}
+}
+
+function setMerchantbookAttentionBarStyle() {
+	alert('TODO');
+}
+
+function setNormalAttentionBarStyle() {
+	var container = document.createElement('iframe');
+	$attr(container, {
+		'src': aib.attentionBar.postAction,
+		'width': '100%',
+		'scrolling': 'no',
+		'height': '20px',
+		'frameborder': '0'
+	});
+	aib.attentionBar.setAttentionBarLocation(container);
+}
+
+function setIrcAttentionBarStyle() {
+	var container = document.createElement('div');
+	$attr(container, {
+		'id': 'attentionBarContainer',
+		'class': 'rotating',
+		'style': 'width: 400px; margin: 8px auto 8px auto;'
+	});
+	container.innerHTML = '<span><span id="attentionPrevContent" style="display: none;">'+content+'</span>'
+		+ '<div id="attentionBox" style="overflow-y: scroll; height: 64px;"></div>'
+		+ '<form type="POST" action="#" id="attentionForm">'
+		+ '<input style="width:99.7%;" name="attentionInput" id="attentionInput" type="text" />'
+		+ '<input id="attentionReload" type="button" value="&#8635;" />'
+		+ '<label><input id="clearPreviousContent" type="checkbox" /> ' + aib.attentionBar.clearMsg + '</label>'
+		+ '</form></span>';
+
+	var content = getAttentionBarContent(function(content) {
+		setAttentionBarContent(container, content, false);
+	});
+
+	aib.attentionBar.setAttentionBarLocation(container);
+
+	$id('attentionReload').onclick = function() {
+		getAttentionBarContent(function(content) {
+			setAttentionBarContent(container, content, false);
+		});
+	};
+
+	$id('attentionForm').onsubmit = function() {
+		var attentionInput = $id('attentionInput');
+		var newContent = attentionInput ? attentionInput.value : '';
+		var clearPrevious = $id('clearPreviousContent').checked;
+		if(clearPrevious) {
+			postAttentionBarContent(newContent, function(result) {
+					setAttentionBarContent(container, newContent, true);
+			});
+		} else if(newContent) {
+			getAttentionBarContent(function(currentContent) {
+				var modifiedContent = currentContent + " | " + newContent;
+				postAttentionBarContent(modifiedContent, function(result) {
+					setAttentionBarContent(container, result, true);
+				});
+			});
+		}
+		return false;
+	};
+}
 
 //============================================================================================================
 //													MAIN
@@ -9154,6 +9359,7 @@ function doScript() {
 	savePosts();
 	saveUserPosts();
 	$log('Save posts');
+	changeAttentionBarStyle();
 	timeLog.push(Lng.total[lang] + (Date.now() - initTime) + 'ms');
 }
 
