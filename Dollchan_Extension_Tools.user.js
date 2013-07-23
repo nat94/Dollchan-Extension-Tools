@@ -7716,12 +7716,7 @@ ImageBoard.prototype = {
 				postAction: '/atencja.php',
 				clearMsg: 'wyczyść pasek',
 				setAttentionBarLocation: function(attentionBar) {
-					var dancingPope = $t('embed', document);
-					if(dancingPope) {
-						$after(dancingPope.parentNode, attentionBar);
-					} else {
-						$after($c('logo', document), attentionBar);
-					}
+					$after($c('logo', document), attentionBar);
 				}
 			} },
 			init: { value: function() {
@@ -9151,6 +9146,7 @@ function findContentInResponse(response) {
 	if(startPos >= 0 && midPos >= 0 && endPos >= 0) {
 		content = response.substr(midPos, endPos - midPos);
 	}
+	content = content.replace(/(\r\n|\n|\r)/gm, '');
 	return content;
 }
 
@@ -9177,8 +9173,8 @@ function getAttentionBarContent(callback) {
 
 function postAttentionBarContent(content, callback) {
 	var encoded = encodeURIComponent(content);
-	while(encoded.length > aib.attentionBar.barLength && encoded.indexOf('|') > 0) {
-		encoded = encoded.substr(encoded.indexOf('|')+1);
+	while(encoded.length > aib.attentionBar.barLength && encoded.indexOf('%7C') > 0) {
+		encoded = encoded.substr(encoded.indexOf('%7C') + 3);
 	}
 	if(encoded.length > aib.attentionBar.barLength) encoded.substr(0, aib.attentionBar.barLength);
 
@@ -9248,7 +9244,7 @@ function setIrcAttentionBarStyle() {
 	var container = document.createElement('div');
 	$attr(container, {
 		'id': 'attentionBarContainer',
-		'class': 'rotating',
+		'class': 'reply',
 		'style': 'width: 400px; margin: 8px auto 8px auto;'
 	});
 	container.innerHTML = '<span><span id="attentionPrevContent" style="display: none;">'+content+'</span>'
@@ -9277,11 +9273,11 @@ function setIrcAttentionBarStyle() {
 		var clearPrevious = $id('clearPreviousContent').checked;
 		if(clearPrevious) {
 			postAttentionBarContent(newContent, function(result) {
-					setAttentionBarContent(container, newContent, true);
+				setAttentionBarContent(container, newContent, true);
 			});
 		} else if(newContent) {
 			getAttentionBarContent(function(currentContent) {
-				var modifiedContent = currentContent + " | " + newContent;
+				var modifiedContent = currentContent ? (currentContent + " | " + newContent) : newContent;
 				postAttentionBarContent(modifiedContent, function(result) {
 					setAttentionBarContent(container, result, true);
 				});
