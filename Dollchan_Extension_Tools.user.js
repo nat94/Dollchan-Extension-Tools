@@ -63,9 +63,8 @@ defaultCfg = {
 	'postSameImg':	1,		// 		ability to post same images
 	'removeEXIF':	1,		// 		remove EXIF data from JPEGs
 	'removeFName':	0,		// 		remove file name
-	'addPostForm':	2,		// postform displayed [0=at top, 1=at bottom, 2=inline, 3=hanging]
+	'addPostForm':	2,		// postform displayed [0=at top, 1=at bottom, 2=hidden, 3=hanging]
 	'scrAfterRep':	0,		// scroll to the bottom after reply
-	'noThrdForm':	1,		// hide thread-creating form
 	'favOnReply':	1,		// add thread to favorites on reply
 	'addSageBtn':	1,		// email field -> sage btn
 	'warnSubjTrip':	0,		// warn if subject field contains tripcode
@@ -168,11 +167,10 @@ Lng = {
 		'removeEXIF':	['Удалять EXIF из отправляемых JPEG-изображений', 'Remove EXIF from uploaded JPEG-images'],
 		'removeFName':	['Удалять имя из отправляемых файлов', 'Remove names from uploaded files'],
 		'addPostForm': {
-			sel:		[['Сверху', 'Внизу', 'В постах', 'Отдельная'], ['At top', 'At bottom', 'Inline', 'Hanging']],
-			txt:		['форма ответа в треде* ', 'reply form in thread* ']
+			sel:		[['Сверху', 'Внизу', 'Скрытая', 'Отдельная'], ['At top', 'At bottom', 'Hidden', 'Hanging']],
+			txt:		['форма ответа* ', 'reply form* ']
 		},
 		'scrAfterRep':	['Перемещаться в конец треда после отправки', 'Scroll to the bottom after reply'],
-		'noThrdForm':	['Прятать форму создания треда', 'Hide thread creating form'],
 		'favOnReply':	['Добавлять тред в избранное при ответе', 'Add thread to favorites on reply'],
 		'addSageBtn':	['Sage вместо поля E-mail* ', 'Sage button instead of E-mail field* '],
 		'warnSubjTrip':	['Предупреждать при наличии трип-кода в поле тема', 'Warn if field subject contains trip-code'],
@@ -252,7 +250,6 @@ Lng = {
 		'gonext':	['Следующая', 'Next'],
 		'goup':		['Наверх', 'To the top'],
 		'godown':	['В конец', 'To the bottom'],
-		'newthr':	['Создать тред', 'New thread'],
 		'expimg':	['Раскрыть картинки', 'Expand images'],
 		'maskimg':	['Маскировать картинки', 'Mask images'],
 		'upd-on':	['Автообновление треда', 'Thread autoupdate'],
@@ -349,7 +346,6 @@ Lng = {
 	checkNow:		['Проверить сейчас', 'Check now'],
 	updAvail:		['Доступно обновление!', 'Update available!'],
 	haveLatest:		['У вас стоит самая последняя версия!', 'You have latest version!'],
-	version:		['Версия: ', 'Version: '],
 	storage:		['Хранение: ', 'Storage: '],
 	thrViewed:		['Тредов просмотрено: ', 'Threads viewed: '],
 	thrCreated:		['Тредов создано: ', 'Threads created: '],
@@ -384,7 +380,9 @@ Lng = {
 	getNewPosts:	['Получить новые посты', 'Get new posts'],
 	page:			['Страница', 'Page'],
 	hiddenThrd:		['Скрытый тред:', 'Hidden thread:'],
-	expandForm:		['Раскрыть форму', 'Expand form'],
+	makeThrd:		['Создать тред', 'Create thread'],
+	makeReply:		['Ответить', 'Make reply'],
+	hideForm:		['Закрыть форму', 'Hide form'],
 	search:			['Искать в ', 'Search in '],
 	wait:			['Ждите', 'Wait'],
 	addFile:		['+ файл', '+ file'],
@@ -439,8 +437,7 @@ function $q(path, root) {
 }
 
 function $C(id, root) {
-	return nav.Firefox ? root.getElementsByClassName(id) :
-		root.querySelectorAll('.' + id);
+	return nav.Firefox ? root.getElementsByClassName(id) : root.querySelectorAll('.' + id);
 }
 
 function $c(id, root) {
@@ -571,35 +568,6 @@ function $getStyle(el, prop) {
 	return getComputedStyle(el).getPropertyValue(prop);
 }
 
-function $scroll(distance, runFn, endFn) {
-	var beginTime, endTime, pageOffset = pageYOffset,
-		DURATION = 400,
-		step = distance / DURATION;
-	if(!Cfg['animation'] || Math.abs(distance) < 50) {
-		scrollTo(0, pageOffset + distance);
-		if(endFn) {
-			endFn();
-		}
-		return;
-	}
-	function makeStep(currentTime) {
-		if(currentTime >= endTime) {
-			scrollTo(0, pageOffset + distance);
-			if(endFn) {
-				setTimeout(endFn, 0);
-			}
-			return;
-		}
-		scrollTo(0, pageOffset + ((step * (currentTime - beginTime)) | 0));
-		if(!runFn || runFn()) {
-			requestAnimationFrame(makeStep);
-		}
-	}
-	beginTime = performance.now();
-	endTime = beginTime + DURATION;
-	requestAnimationFrame(makeStep);
-}
-
 function $pd(e) {
 	e.preventDefault();
 }
@@ -653,7 +621,6 @@ function $xhr(obj) {
 	xhr.send(obj['data'] || null);
 }
 
-/** @constructor */
 function $queue(maxNum, Fn, endFn) {
 	this.array = [];
 	this.length = this.index = this.running = 0;
@@ -713,7 +680,6 @@ $queue.prototype = {
 	}
 };
 
-/** @constructor */
 function $tar() {
 	this.data = [];
 }
@@ -731,9 +697,9 @@ $tar.prototype = {
 		data[offset] = 0x20; // ' '
 	},
 	addString: function(filepath, str) {
-		this.addFile(filepath, new Uint8Array(unescape(encodeURIComponent(str)).split('').map(
-			function(a) { return a.charCodeAt(); }
-		)));
+		this.addFile(filepath, new Uint8Array(unescape(encodeURIComponent(str)).split('').map(function(a) {
+			return a.charCodeAt();
+		})));
 	},
 	addFile: function(filepath, input) {
 		var i, checksum, nameLen = filepath.length,
@@ -753,7 +719,7 @@ $tar.prototype = {
 		this.padSet(header, 136, Math.floor(Date.now() / 1000).toString(8), 12);	// mtime
 		this.padSet(header, 148, '        ', 8);									// checksum
 		header[156] = 0x30;															// type ('0')
-		for(i = checksum = 0; i < 174; i++) {
+		for(i = checksum = 0; i < 157; i++) {
 			checksum += header[i];
 		}
 		this.padSet(header, 148, checksum.toString(8), 8);							// checksum
@@ -781,7 +747,8 @@ function getPostEl(el) {
 }
 
 function getImages(el) {
-	return el.querySelectorAll('.thumb, .de-thumb, .ca_thumb, img[src*="thumb"], img[src*="/spoiler"], img[src^="blob:"]');
+	return el.querySelectorAll('.thumb, .de-thumb, .ca_thumb, ' +
+		'img[src*="thumb"], img[src*="/spoiler"], img[src^="blob:"]');
 }
 
 function fixBrd(b) {
@@ -828,7 +795,7 @@ function getPrettyJSON(obj, indent) {
 			sJSON += '\n' + indent + '    ' + (isArr ? '' : '"' + key + '"' + ': ') + (
 				type === 'array' || type === 'object' ? getPrettyJSON(val, indent + '    ') :
 				type === 'boolean' || type === 'number' ? val.toString() :
-				type === 'string' ? '"' + val.replace(/("|\\)/g, '\\$1').replace(/\r/g, '').replace(/\n/g, '\\n') + '"' : type
+				type === 'string' ? '"' + val.replace(/("|\\)/g, '\\$1').replace(/\r?\n/g, '\\n') + '"' : type
 			);
 			iCount++;
 		}
@@ -844,23 +811,6 @@ function getErrorMessage(eCode, eMsg) {
 //============================================================================================================
 //											STORAGE & CONFIG
 //============================================================================================================
-
-function setCookie(id, value, life) {
-	doc.cookie = escape(id) + '=' + escape(value) + ';expires=' +
-		(new Date(Date.now() + life)).toGMTString() + ';path=/';
-}
-
-function getCookie(id) {
-	var one, arr = doc.cookie.split('; '),
-		i = arr.length;
-	while(i--) {
-		one = arr[i].split('=');
-		if(one[0] === escape(id)) {
-			return unescape(one[1]);
-		}
-	}
-	return false;
-}
 
 function getStored(id) {
 	return nav.isGM ? GM_getValue(id) :
@@ -897,10 +847,6 @@ function getStoredObj(id) {
 	}
 }
 
-function getCfg(obj) {
-	return obj && !$isEmpty(obj) ? obj : false;
-}
-
 function saveComCfg(dm, obj) {
 	comCfg = getStoredObj('DESU_Config');
 	if(obj) {
@@ -920,8 +866,7 @@ function saveCfg(id, val) {
 
 function readCfg() {
 	comCfg = getStoredObj('DESU_Config');
-	Cfg = getCfg(comCfg[aib.dm]);
-	if(!Cfg) {
+	if(!(aib.dm in comCfg) || $isEmpty(Cfg = comCfg[aib.dm])) {
 		Cfg = {};
 		if(nav.isGlobal) {
 			for(var i in comCfg['global']) {
@@ -953,7 +898,7 @@ function readCfg() {
 	if(nav.WebKit) {
 		Cfg['favIcoBlink'] = 0;
 	}
-	if(!nav.hasNotifications) {
+	if(!('Notification' in window)) {
 		Cfg['desktNotif'] = 0;
 	}
 	if(nav.Opera) {
@@ -990,15 +935,9 @@ function readCfg() {
 	saveComCfg(aib.dm, Cfg);
 	lang = Cfg['language'];
 	if(Cfg['correctTime']) {
-		dTime = new dateTime(
-			Cfg['timePattern'],
-			Cfg['timeRPattern'],
-			Cfg['timeOffset'],
-			lang,
-			function(rp) {
-				saveCfg('timeRPattern', rp);
-			}
-		);
+		dTime = new dateTime(Cfg['timePattern'], Cfg['timeRPattern'], Cfg['timeOffset'], lang, function(rp) {
+			saveCfg('timeRPattern', rp);
+		});
 	}
 	if(aib.hana) {
 		aib.hDTFix = new dateTime(
@@ -1009,14 +948,10 @@ function readCfg() {
 			null
 		);
 	}
-	spells = new Spells(!!Cfg['hideBySpell']);
-	youTube = initYouTube(Cfg['addYouTube'], Cfg['YTubeType'], Cfg['YTubeWidth'], Cfg['YTubeHeigh'],
-		Cfg['YTubeHD'], Cfg['YTubeTitles']);
-	aib.rep = aib.fch || aib.krau || dTime || spells.haveReps || Cfg['crossLinks'];
 }
 
 function toggleCfg(id) {
-	saveCfg(id, !Cfg[id] ? 1 : 0);
+	saveCfg(id, +!Cfg[id]);
 }
 
 function readPosts() {
@@ -1185,7 +1120,7 @@ function closePanel(el) {
 
 function addPanel() {
 	var imgLen = getImages(dForm).length;
-	$before(((!TNum || Cfg['addPostForm'] !== 1) && pr.pArea) || dForm, $New('div', {'id': 'de-main', 'lang': getThemeLang()}, [
+	$before(pr.pArea[0] || dForm, $New('div', {'id': 'de-main', 'lang': getThemeLang()}, [
 		$event($New('div', {'id': 'de-panel'}, [
 			$new('span', {'id': 'de-btn-logo', 'title': Lng.panelBtn['attach'][lang]}, {'click': function() {
 				var el = this.parentNode;
@@ -1220,13 +1155,12 @@ function addPanel() {
 				$if(!TNum && !aib.arch, pButton('gonext', null, aib.getPageUrl(brd, pageNum + 1), null, null)),
 				pButton('goup', function(e) {
 					$pd(e);
-					$scroll(-pageYOffset, null, null);
+					scrollTo(0, 0);
 				}, null, null, null),
 				pButton('godown', function(e) {
 					$pd(e);
-					$scroll(doc.body.scrollHeight || doc.body.offsetHeight - pageYOffset, null, null);
+					scrollTo(0, doc.body.scrollHeight || doc.body.offsetHeight);
 				}, null, null, null),
-				$if(!TNum && (pr.form || pr.oeForm), pButton('newthr', pr.toggleMainReply.bind(pr), null, null, null)),
 				$if(imgLen > 0, pButton('expimg', function(e) {
 					$pd(e);
 					isExpImg = !isExpImg;
@@ -1321,7 +1255,8 @@ function toggleContent(name, isUpd) {
 function addContentBlock(parent, title) {
 	return parent.appendChild($New('div', {'class': 'de-content-block'}, [
 		$new('input', {'type': 'checkbox'}, {'click': function() {
-			for(var el, res = this.checked, i = 0, els = $Q('.de-entry > div > input', this.parentNode); el = els[i++];) {
+			var el, res = this.checked, i = 0, els = $Q('.de-entry > div > input', this.parentNode);
+			for(; el = els[i++];) {
 				el.checked = res;
 			}
 		}}),
@@ -1417,7 +1352,7 @@ function showContent(cont, id, name, isUpd) {
 			$btn(Lng.clear[lang], Lng.clrDeleted[lang], function() {
 				$each($Q('.de-entry[info]', this.parentNode), function(el) {
 					var arr = el.getAttribute('info').split(';');
-					ajaxGetPosts(aib.getThrdUrl(arr[0], arr[1]), false, null, function(eCode, eMsg) {
+					ajaxGetPosts(aib.getThrdUrl(arr[0], arr[1]), null, function(eCode, eMsg) {
 						if(eCode === 404) {
 							delete hThr[this[0]][this[1]];
 							saveHiddenThreads(true);
@@ -1489,8 +1424,8 @@ function showContent(cont, id, name, isUpd) {
 						return;
 					}
 					c = $attr($c('de-fav-inf-posts', el).firstElementChild, {'class': 'de-wait', 'text': ''});
-					ajaxGetPosts(aib.getThrdUrl(arr[1], arr[2]), true, function(els, op) {
-						var cnt = els.length + 1;
+					ajaxGetPosts(aib.getThrdUrl(arr[1], arr[2]), function(dc) {
+						var cnt = aib.getPosts(parsePage($q(aib.qDForm, dc), dc, null, false).el).length + 1;
 						c.textContent = cnt;
 						if(cnt > f.cnt) {
 							c.className = 'de-fav-inf-new';
@@ -1512,12 +1447,14 @@ function showContent(cont, id, name, isUpd) {
 					loaded = 0;
 				$alert(Lng.loading[lang], 'load-pages', true);
 				while(i--) {
-					loadPageHelper(i, function(page, idx) {
-						for(var arr, el, j = 0, els = $C('de-entry', doc); el = els[j++];) {
-							arr = el.getAttribute('info').split(';');
+					ajaxGetPosts(aib.getPageUrl(brd, i), function(idx, dc) {
+						for(var arr, el, len = this.length, i = 0; i < len; ++i) {
+							arr = this[i].getAttribute('info').split(';');
 							if(arr[0] === aib.host && arr[1] === brd) {
-								el = $c('de-fav-inf-page', el);
-								if((new RegExp('(?:№|No.|>)\\s*' + arr[2] + '\\s*<')).test(page.innerHTML)) {
+								el = $c('de-fav-inf-page', this[i]);
+								if((new RegExp('(?:№|No.|>)\\s*' + arr[2] + '\\s*<'))
+									.test($q(aib.qDForm, dc).innerHTML))
+								{
 									el.innerHTML = '@' + (aib.tiny ? idx + 1 : idx);
 								} else if(loaded === 5 && !el.textContent.contains('@')) {
 									el.innerHTML = '@?';
@@ -1528,13 +1465,18 @@ function showContent(cont, id, name, isUpd) {
 							closeAlert($id('de-alert-load-pages'));
 						}
 						loaded++;
+					}.bind($C('de-entry', doc), i), function() {
+						if(loaded === 5) {
+							closeAlert($id('de-alert-load-pages'));
+						}
+						loaded++;
 					});
 				}
 			}),
 			$btn(Lng.clear[lang], Lng.clrDeleted[lang], function() {
 				$each($C('de-entry', doc), function(el) {
 					var arr = el.getAttribute('info').split(';');
-					ajaxGetPosts(Favor[arr[0]][arr[1]][arr[2]]['url'], false, null, function(eCode, eMsg) {
+					ajaxGetPosts(Favor[arr[0]][arr[1]][arr[2]]['url'], null, function(eCode, eMsg) {
 						if(eCode === 404) {
 							removeFavorites(arr[0], arr[1], arr[2]);
 							saveFavorites();
@@ -1720,7 +1662,8 @@ function getCfgFilters() {
 				var wrap = el.post.wrap,
 					hide = !wrap.classList.contains('de-hidden');
 				if(hide) {
-					wrap.insertAdjacentHTML('beforebegin', '<span style="counter-increment: de-cnt 1;"></span>');
+					wrap.insertAdjacentHTML('beforebegin',
+						'<span style="counter-increment: de-cnt 1;"></span>');
 				} else {
 					$del(wrap.previousSibling);
 				}
@@ -1740,9 +1683,9 @@ function getCfgPosts() {
 		]),
 		$New('div', {'class': 'de-cfg-depend'}, [
 			$if(!nav.WebKit, lBox('favIcoBlink', true, null)),
-			$if(nav.hasNotifications, lBox('desktNotif', true, function() {
+			$if('Notification' in window, lBox('desktNotif', true, function() {
 				if(Cfg['desktNotif']) {
-					nav.requestNotifPermission();
+					Notification.requestPermission();
 				}
 			}))
 		]),
@@ -1835,11 +1778,6 @@ function getCfgForm() {
 		])),
 		$if(pr.form, optSel('addPostForm', true, null)),
 		$if(pr.form, lBox('scrAfterRep', true, null)),
-		$if(pr.form, lBox('noThrdForm', true, function() {
-			if(!TNum) {
-				pr.pArea.style.display = Cfg['noThrdForm'] ? 'none' : '';
-			}
-		})),
 		lBox('favOnReply', true, null),
 		$if(pr.mail, $New('div', null, [
 			lBox('addSageBtn', false, null),
@@ -1945,19 +1883,24 @@ function getCfgCommon() {
 
 function getCfgInfo() {
 	return $New('div', {'class': 'de-cfg-unvis', 'id': 'de-cfg-info'}, [
-		$add('<div style="width: 179px;"><b>' + Lng.version[lang] + version + '</b><br><br>' +
+		$add('<div style="padding-bottom: 10px;">' +
+			'<a href="https://github.com/SthephanShinkufag/Dollchan-Extension-Tools/wiki/versions" ' +
+			'target="_blank">v' + version + '</a>&nbsp;|&nbsp;' +
+			'<a href="http://www.freedollchan.org/scripts/" target="_blank">Freedollchan</a>&nbsp;|&nbsp;' +
+			'<a href="https://github.com/SthephanShinkufag/Dollchan-Extension-Tools/wiki/' +
+			(lang ? 'home-en/' : '') + '" target="_blank">Github</a></div>'),
+		$add('<div style="display: inline-block; vertical-align: top; width: 179px; height: 295px;">' +
 			Lng.thrViewed[lang] + Cfg['stats']['view'] + '<br>' +
 			Lng.thrCreated[lang] + Cfg['stats']['op'] + '<br>' +
 			Lng.posts[lang] + Cfg['stats']['reply'] + '</div>'),
-		$add('<div style="padding-left: 7px; border-left: 1px solid grey;">' +
-			timeLog.join('<br>') + '</div>'),
-		$add('<span><a href="http://www.freedollchan.org/scripts/" target="_blank">Freedollchan</a>&nbsp;' +
-			'<a href="https://github.com/nat94/Dollchan-Extension-Tools/wiki/' +
-			(lang ? 'home-en/' : '') + '" target="_blank">Github</a></span>'),
-		$attr($btn(Lng.debug[lang], Lng.infoDebug[lang], function() {
+		$add('<div style="display: inline-block; padding-left: 7px; height: 295px; ' +
+			'border-left: 1px solid grey;">' + timeLog.join('<br>') + '</div>'),
+		$btn(Lng.debug[lang], Lng.infoDebug[lang], function() {
 			var i, nCfg = {};
 			for(i in Cfg) {
-				if(Cfg[i] !== defaultCfg[i] && i !== 'stats' && i !== 'nameValue' && i !== 'passwValue' && i !== 'signatValue') {
+				if(Cfg[i] !== defaultCfg[i] && i !== 'stats' && i !== 'nameValue' &&
+					i !== 'passwValue' && i !== 'signatValue')
+				{
 					nCfg[i] = Cfg[i];
 				}
 			}
@@ -1970,7 +1913,7 @@ function getCfgInfo() {
 				'oSpells': sessionStorage['de-spells-' + brd + TNum],
 				'perf': timeLog
 			}, '') + '</textarea>', 'help-debug', false);
-		}), {'style': 'float: right;'})
+		})
 	]);
 }
 
@@ -2023,7 +1966,7 @@ function addSettings(Set) {
 			}),
 			$New('div', {'style': 'float: right;'}, [
 				$if(nav.isGlobal, $btn(Lng.load[lang], Lng.loadGlobal[lang], function() {
-					if(getCfg(comCfg['global'])) {
+					if(('global' in comCfg) && !$isEmpty(comCfg['global'])) {
 						saveComCfg(aib.dm, null);
 						window.location.reload();
 					} else {
@@ -2120,10 +2063,9 @@ function showMenu(el, html, inPanel, onclick) {
 		pos = 'absolute';
 		y = 'top: ' + (window.pageYOffset + cr.bottom);
 	}
-	doc.body.insertAdjacentHTML('beforeend', '<div class="' + aib.cReply +
-		' de-menu" style="position: ' + pos + '; right: ' +
-		(doc.documentElement.clientWidth - cr.right - window.pageXOffset)
-		+ 'px; ' + y + 'px;">' + html + '</div>');
+	doc.body.insertAdjacentHTML('beforeend', '<div class="' + aib.cReply + ' de-menu" style="position: ' +
+		pos + '; right: ' + (doc.documentElement.clientWidth - cr.right - window.pageXOffset) +
+		'px; ' + y + 'px;">' + html + '</div>');
 	menu = doc.body.lastChild;
 	menu.addEventListener('mouseover', function(e) {
 		clearTimeout(e.currentTarget.odelay);
@@ -2158,8 +2100,8 @@ function removeMenu(e) {
 }
 
 function addSpellMenu(el) {
-	showMenu(el, '<div style="display: inline-block; border-right: 1px solid grey;"><span class="de-menu-item">' +
-		('#words,#exp,#exph,#imgn,#ihash,#subj,#name,#trip,#img,<br>')
+	showMenu(el, '<div style="display: inline-block; border-right: 1px solid grey;">' +
+		'<span class="de-menu-item">' + ('#words,#exp,#exph,#imgn,#ihash,#subj,#name,#trip,#img,<br>')
 			.split(',').join('</span><span class="de-menu-item">') +
 		'</span></div><div style="display: inline-block;"><span class="de-menu-item">' +
 		('#sage,#op,#tlen,#all,#video,#vauthor,#num,#wipe,#rep,#outrep')
@@ -2168,18 +2110,17 @@ function addSpellMenu(el) {
 		var exp = el.textContent,
 			idx = spells.names.indexOf(exp.substr(1));
 		$txtInsert($id('de-spell-edit'), exp + (
-			TNum && exp !== '#op' && exp !== '#rep' && exp !== '#outrep' ?
-				'[' + brd + ',' + TNum + ']' : ''
+			TNum && exp !== '#op' && exp !== '#rep' && exp !== '#outrep' ? '[' + brd + ',' + TNum + ']' : ''
 		) + (idx < 5 || idx > 14 ? '(' : ''));
 	});
 }
 
 function addAjaxPagesMenu(el) {
-	showMenu(el, '<span class="de-menu-item">' +Lng.selAjaxPages[lang].join('</span><span class="de-menu-item">') +
-		'</span>', true, function(el) {
-			loadPages(aProto.indexOf.call(el.parentNode.children, el) + 1);
-		}
-	);
+	showMenu(el, '<span class="de-menu-item">' +
+		Lng.selAjaxPages[lang].join('</span><span class="de-menu-item">') + '</span>', true,
+	function(el) {
+		loadPages(aProto.indexOf.call(el.parentNode.children, el) + 1);
+	});
 }
 
 function addAudioNotifMenu(el) {
@@ -2200,7 +2141,6 @@ function addAudioNotifMenu(el) {
 
 function KeyNavigation() {
 	this.lastPageOffset = 0;
-	this.scrolling = false;
 	this.cPost = null;
 	this.enabled = true;
 	doc.addEventListener('keydown', this, true);
@@ -2208,7 +2148,6 @@ function KeyNavigation() {
 KeyNavigation.prototype = {
 	clear: function() {
 		this.lastPageOffset = 0;
-		this.scrolling = false;
 		this.cPost = null;
 	},
 	disable: function() {
@@ -2248,7 +2187,7 @@ KeyNavigation.prototype = {
 		}
 		if(e.ctrlKey) {
 			if(kc === 37) {
-				window.location.pathname = aib.getPageUrl(brd, TNum || pageNum === 0 ? 0 : pageNum - 1);
+				window.location.pathname = aib.getPageUrl(brd, TNum ? 0 : pageNum - 1);
 			} else if(!TNum && kc === 39) {
 				window.location.pathname = aib.getPageUrl(brd, pageNum + 1);
 			}
@@ -2269,17 +2208,19 @@ KeyNavigation.prototype = {
 		}
 		$pd(e);
 		e.stopPropagation();
-		if(!this.scrolling && this.lastPageOffset !== (pyOffset = pageYOffset)) {
+		if(this.lastPageOffset !== (pyOffset = pageYOffset)) {
 			for(post = firstThr.op; post; post = post.next) {
 				if(post.offsetTop >= pyOffset) {
 					break;
 				}
 			}
-			this.cPost = post;
+			if(this.cPost) {
+				this.cPost.unselect();
+			}
+			this.cPost = post = post.prev;
 			this.lastPageOffset = pyOffset;
 		} else {
 			post = this.cPost;
-			this.scrolling = false;
 		}
 		if(kc === 86) {
 			if(TNum) {
@@ -2291,11 +2232,13 @@ KeyNavigation.prototype = {
 			}
 		} else if(kc === 72) {
 			if(!post) {
-				this.cPost = post = firstThr.op;
+				post = this._getNextVisPost(null, true, false);
+				if(!post) {
+					return;
+				}
 			}
-			if(post.toggleUserVisib()) {
-				this._scroll(post, false, post.isOp);
-			}
+			post.toggleUserVisib();
+			this._scroll(post, false, post.isOp);
 		} else if(kc === 75) {
 			this._scroll(post, true, !TNum);
 		} else if(kc === 74) {
@@ -2306,43 +2249,43 @@ KeyNavigation.prototype = {
 			this._scroll(post, false, false);
 		}
 	},
-	_scroll: function(post, toUp, toThread) {
-		var thr, el, next;
-		this.scrolling = true;
-		if(!post) {
-			next = firstThr.op;
-		} else {
-			if(toThread) {
-				thr = post.thr;
-				if(thr = toUp ? thr.prev : thr.next) {
-					next = thr.op;
-				} else {
-					return;
-				}
-			} else {
-				if(next = toUp ? post.prev : post.next) {
-					if(!next.isOp && next.thr.hidden) {
-						if(next.thr !== post.thr) {
-							next = next.thr.op;
-						} else if(thr = toUp ? next.thr.prev : next.thr.next) {
-							next = thr.op;
-						} else {
-							return;
-						}
-					}
-				} else {
-					return;
-				}
+	_getNextVisPost: function(cPost, isOp, toUp) {
+		var thr, post;
+		if(isOp) {
+			thr = cPost ? toUp ? cPost.thr.prev : cPost.thr.next : firstThr;
+			while(thr && thr.hidden) {
+				thr = toUp ? thr.prev : thr.next;
 			}
+			return thr ? thr.op : null;
+		}
+		post = cPost ? toUp ? cPost.prev : cPost.next : firstThr.op;
+		while(post) {
+			if(post.thr.hidden) {
+				post = toUp ? post.thr.op.prev : post.thr.last.next;
+			} else if(post.hidden) {
+				post = toUp ? post.prev : post.next
+			} else {
+				return post;
+			}
+		}
+		return null;
+	},
+	_scroll: function(post, toUp, toThread) {
+		var next = this._getNextVisPost(post, toThread, toUp);
+		this.scrolling = true;
+		if(!next) {
+			if(!TNum) {
+				window.location.pathname = aib.getPageUrl(brd, toUp ? pageNum - 1 : pageNum + 1);
+			}
+			return;
+		}
+		if(post) {
 			post.unselect();
 		}
-		el = next.isOp && next.hidden ? next.thr.el.previousElementSibling : next.el;
-		$scroll(el.getBoundingClientRect().top - (toThread ? 0 : Post.sizing.wHeight / 2 -
-			next.el.clientHeight / 2), function() {
-				return this.scrolling;
-			}.bind(this), function() {
-				this.lastPageOffset = pageYOffset;
-			}.bind(this));
+		scrollTo(0, this.lastPageOffset = Math.round(
+			pageYOffset + next.el.getBoundingClientRect().top -
+			(toThread ? 0 : Post.sizing.wHeight / 2 - next.el.clientHeight / 2)
+		));
 		next.select();
 		this.cPost = next;
 	}
@@ -2371,8 +2314,9 @@ function checkUpload(response) {
 	var el, err = response[1];
 	if(err) {
 		if(pr.isQuick) {
-			$disp(pr._qArea);
-			pr._qArea.appendChild(pr._pForm);
+			$disp(pr.pForm);
+			$disp(pr.qArea);
+			pr.qArea.appendChild(pr.pForm);
 		}
 		if(/captch|капч|подтвер|verifizie/i.test(err)) {
 			pr.refreshCapImg(pr.tNum, true);
@@ -2400,7 +2344,7 @@ function checkUpload(response) {
 			infoLoadErrors(eCode, eMsg, 0);
 			closeAlert($id('de-alert-upload'));
 			if(Cfg['scrAfterRep']) {
-				$scroll(firstThr.last.el.getBoundingClientRect().top, null, null);
+				scrollTo(0, pageYOffset + firstThr.last.el.getBoundingClientRect().top);
 			}
 		}, true);
 	} else {
@@ -2441,7 +2385,6 @@ function checkDelete(response) {
 	}
 }
 
-/** @constructor */
 function html5Submit(form, button, fn) {
 	this.boundary = '---------------------------' + Math.round(Math.random() * 1e11);
 	this.data = [];
@@ -2449,7 +2392,8 @@ function html5Submit(form, button, fn) {
 	this.error = false;
 	this.url = form.action;
 	this.fn = fn;
-	$each($Q('input:not([type="submit"]):not([type="button"]), textarea, select', form), this.append.bind(this));
+	$each($Q('input:not([type="submit"]):not([type="button"]), textarea, select', form),
+		this.append.bind(this));
 	this.append(button);
 	this.submit();
 }
@@ -2509,10 +2453,8 @@ html5Submit.prototype = {
 				if(xhr.status === 200) {
 					this(getSubmitResponse(nav.toDOM(xhr.responseText), false));
 				} else {
-					$alert(
-						xhr.status === 0 ? Lng.noConnect[lang] : 'HTTP [' + xhr.status + '] ' + xhr.statusText,
-						'upload', false
-					);
+					$alert(xhr.status === 0 ? Lng.noConnect[lang] :
+						'HTTP [' + xhr.status + '] ' + xhr.statusText, 'upload', false);
 				}
 			}.bind(this.fn)
 		});
@@ -2621,7 +2563,8 @@ html5Submit.prototype = {
 			return rv;
 		}
 		if(img[0] === 0x89 && img[1] === 0x50) {
-			for(i = 0, len = img.length - 7; i < len && (img[i] !== 0x49 || img[i + 1] !== 0x45 || img[i + 2] !== 0x4E || img[i + 3] !== 0x44); i++) {}
+			for(i = 0, len = img.length - 7; i < len && (img[i] !== 0x49 ||
+				img[i + 1] !== 0x45 || img[i + 2] !== 0x4E || img[i + 3] !== 0x44); i++) {}
 			i += 8;
 			return i === len || (!delExtraData && len - i > 75) ? [img] : [new Uint8Array(data, 0, i)];
 		}
@@ -2708,7 +2651,6 @@ function detectImgFile(ab) {
 	return {};
 }
 
-/** @constructor */
 function workerQueue(mReqs, wrkFn, errFn) {
 	if(!nav.Worker) {
 		this.find = this._findSync.bind(wrkFn);
@@ -2777,9 +2719,10 @@ function addImgFileIcon(info) {
 			app = 'audio/mpeg';
 			ext = 'mp3';
 		}
-		$q(aib.qImgLink, aib.getPicWrap(this)).insertAdjacentHTML('afterend',
-			'<a href="' + window.URL.createObjectURL(new Blob([new Uint8Array(info['data']).subarray(info['idx'])], {'type': app})) +
-			'" class="' + (type > 2 ? 'de-img-audio' : 'de-img-arch') + '" title="' + Lng.downloadFile[lang] +
+		$q(aib.qImgLink, aib.getPicWrap(this)).insertAdjacentHTML('afterend', '<a href="' + 
+			window.URL.createObjectURL(
+				new Blob([new Uint8Array(info['data']).subarray(info['idx'])], {'type': app})
+			) + '" class="de-img-' + (type > 2 ? 'audio' : 'arch') + '" title="' + Lng.downloadFile[lang] +
 			'" download="' + fName.substring(0, fName.lastIndexOf('.')) + '.' + ext + '">.' + ext + '</a>'
 		);
 	}
@@ -2809,7 +2752,9 @@ function downloadImgData(url, Fn) {
 			} else if(isAb) {
 				Fn(new Uint8Array(e.response));
 			} else {
-				Fn(new Uint8Array(e.responseText.split('').map(function(a) { return a.charCodeAt(); })));
+				Fn(new Uint8Array(e.responseText.split('').map(function(a) {
+					return a.charCodeAt();
+				})));
 			}
 		}.bind(null, url)
 	});
@@ -2899,7 +2844,9 @@ function getDataFromImg(img) {
 	cnv.width = img.width;
 	cnv.height = img.height;
 	cnv.getContext('2d').drawImage(img, 0, 0);
-	return new Uint8Array(atob(cnv.toDataURL("image/png").split(',')[1]).split('').map(function(a) { return a.charCodeAt(); }));
+	return new Uint8Array(atob(cnv.toDataURL("image/png").split(',')[1]).split('').map(function(a) {
+		return a.charCodeAt();
+	}));
 }
 
 function loadDocFiles(imgOnly) {
@@ -2939,11 +2886,13 @@ function loadDocFiles(imgOnly) {
 		var u, a, dt;
 		if(!imgOnly) {
 			dt = doc.doctype;
-			$t('head', dc).insertAdjacentHTML('beforeend', '<script type="text/javascript" src="data/dollscript.js"></script>');
+			$t('head', dc).insertAdjacentHTML('beforeend',
+				'<script type="text/javascript" src="data/dollscript.js"></script>');
 			tar.addString('data/dollscript.js', '(' + String(de_main_func) + ')(null, true);');
-			tar.addString(TNum + '.html', '<!DOCTYPE ' + dt.name +
-				(dt.publicId ? ' PUBLIC "' + dt.publicId + '"' : dt.systemId ? ' SYSTEM' : '')
-				+ (dt.systemId ? ' "' + dt.systemId + '"' : '') + '>' + dc.outerHTML
+			tar.addString(
+				TNum + '.html', '<!DOCTYPE ' + dt.name +
+				(dt.publicId ? ' PUBLIC "' + dt.publicId + '"' : dt.systemId ? ' SYSTEM' : '') +
+				(dt.systemId ? ' "' + dt.systemId + '"' : '') + '>' + dc.outerHTML
 			);
 		}
 		u = window.URL.createObjectURL(tar.get());
@@ -2964,12 +2913,14 @@ function loadDocFiles(imgOnly) {
 		var lnk, url;
 		if(lnk = $x("ancestor::a[1]", el)) {
 			url = lnk.href;
-			Images_.queue.run([url, lnk.getAttribute('download') || url.substring(url.lastIndexOf("/") + 1), el, lnk]);
+			Images_.queue.run([url, lnk.getAttribute('download') ||
+				url.substring(url.lastIndexOf("/") + 1), el, lnk]);
 		}
 	});
 	if(!imgOnly) {
 		files = [];
-		$each($Q('script, link[rel="alternate stylesheet"], span[class^="de-btn-"], #de-main > div, #de-parea, #de-qarea, ' + aib.qPostForm, dc), $del);
+		$each($Q('script, link[rel="alternate stylesheet"], span[class^="de-btn-"],' +
+			' #de-main > div, .de-parea, #de-qarea, ' + aib.qPostForm, dc), $del);
 		$each($T('a', dc), function(el) {
 			var num, tc = el.textContent;
 			if(tc.startsWith('>>') && (num = +tc.substr(2)) && (num in pByNum)) {
@@ -3027,7 +2978,6 @@ function loadDocFiles(imgOnly) {
 //												TIME CORRECTION
 //============================================================================================================
 
-/** @constructor */
 function dateTime(pattern, rPattern, diff, dtLang, onRPat) {
 	if(dateTime.checkPattern(pattern)) {
 		this.disabled = true;
@@ -3207,8 +3157,9 @@ function initYouTube(embedType, videoType, width, height, isHD, loadTitles) {
 					addFlash(el, id, time);
 					return;
 				}
-				el.innerHTML = '<video poster="https://i.ytimg.com/vi/' + id + '/0.jpg" controls="controls" ' +
-					'preload="none" src="' + src + (nav.Firefox && nav.Firefox < 14 ? '&' + Math.random() : '') +
+				el.innerHTML = '<video poster="https://i.ytimg.com/vi/' + id +
+					'/0.jpg" controls="controls" preload="none" src="' + src +
+					(nav.Firefox && nav.Firefox < 14 ? '&' + Math.random() : '') +
 					'" width="' + width + '" height="' + height + '"></video>';
 				el = el.firstChild;
 				el.addEventListener('play', updater.addPlayingTag, false);
@@ -3223,8 +3174,7 @@ function initYouTube(embedType, videoType, width, height, isHD, loadTitles) {
 	}
 
 	function addImage(el, m) {
-		el.innerHTML = '<a href="https://www.youtube.com/watch?v=' + m[1] +
-			'" target="_blank">' +
+		el.innerHTML = '<a href="https://www.youtube.com/watch?v=' + m[1] + '" target="_blank">' +
 			'<img class="de-ytube-image" src="https://i.ytimg.com/vi/' + m[1] +
 			'/0.jpg" width="' + width + '" height="' + height + '"></a>';
 	}
@@ -3246,7 +3196,8 @@ function initYouTube(embedType, videoType, width, height, isHD, loadTitles) {
 			}
 			GM_xmlhttpRequest({
 				'method': 'GET',
-				'url': 'https://gdata.youtube.com/feeds/api/videos/' + data[2] + '?alt=json&fields=title/text(),author/name',
+				'url': 'https://gdata.youtube.com/feeds/api/videos/' + data[2] +
+					'?alt=json&fields=title/text(),author/name',
 				'onreadystatechange': function(idx, xhr) {
 					if(xhr.readyState === 4) {
 						var entry, title, author, data, post = this[0], link = this[1];
@@ -3354,7 +3305,8 @@ function embedMP3Links(post) {
 		el = (post || getPostEl(link).post).mp3Obj;
 		if(nav.canPlayMP3) {
 			if(!$q('audio[src="' + src + '"]', el)) {
-				el.insertAdjacentHTML('beforeend', '<p><audio src="' + src + '" preload="none" controls></audio></p>');
+				el.insertAdjacentHTML('beforeend',
+					'<p><audio src="' + src + '" preload="none" controls></audio></p>');
 				link = el.lastChild.firstChild;
 				link.addEventListener('play', updater.addPlayingTag, false);
 				link.addEventListener('pause', updater.removePlayingTag, false);
@@ -3372,45 +3324,34 @@ function embedMP3Links(post) {
 //													AJAX
 //============================================================================================================
 
-function ajaxGetPosts(url, isParse, Fn, errFn) {
-	GM_xmlhttpRequest({
-		'method': 'GET',
-		'url': nav.fixLink(url),
-		'onreadystatechange': function(xhr) {
-			if(xhr.readyState !== 4) {
-				return;
-			}
+function ajaxGetPosts(url, Fn, errFn) {
+	GM_xmlhttpRequest({'method': 'GET', 'url': nav.fixLink(url), 'onreadystatechange': function(Fn, errFn, xhr) {
+		if(xhr.readyState === 4) {
 			if(xhr.status !== 200) {
 				errFn && errFn(xhr.status, xhr.statusText);
 			} else if(Fn) {
-				var thr, dc = nav.toDOM(xhr.responseText);
-				if(isParse) {
-					thr = parsePage($q(aib.qDForm, dc), dc, null, false).el;
-					Fn(aib.getPosts(thr), aib.getOp(thr, dc));
-				} else {
-					Fn(dc, null);
-				}
+				Fn(nav.toDOM(xhr.responseText), null);
 			}
-			isParse = Fn = errFn = dc = null;
 		}
-	});
+	}.bind(null, Fn, errFn)});
 }
 
 function getJsonPosts(url, Fn) {
-	GM_xmlhttpRequest({'method': 'GET', 'url': nav.fixLink(url), 'onreadystatechange': function(xhr) {
+	GM_xmlhttpRequest({'method': 'GET', 'url': nav.fixLink(url), 'onreadystatechange': function(Fn, xhr) {
 		if(xhr.readyState === 4) {
 			if(xhr.status === 304) {
 				closeAlert($id('de-alert-newposts'));
 			} else {
 				try {
-					Fn(xhr.status, xhr.statusText, JSON.parse(xhr.responseText));
+					var json = JSON.parse(xhr.responseText);
 				} catch(e) {
 					Fn(1, e.toString(), null);
+					return;
 				}
-				Fn = null;
+				Fn(xhr.status, xhr.statusText, json);
 			}
 		}
-	}});
+	}.bind(null, Fn)});
 }
 
 function loadFavorThread() {
@@ -3424,7 +3365,7 @@ function loadFavorThread() {
 		return;
 	}
 	if((post = pByNum[el.getAttribute('info').split(';')[2]]) && !post.hidden) {
-		$scroll(post.getBoundingClientRect().top, null, null);
+		scrollTo(0, pageYOffset + post.getBoundingClientRect().top);
 		return;
 	}
 	$del($id('de-iframe-fav'));
@@ -3432,14 +3373,7 @@ function loadFavorThread() {
 	el.insertAdjacentHTML('beforeend', '<iframe name="de-iframe-fav" id="de-iframe-fav" src="' +
 		$t('a', el).href + '" scrolling="no" style="border: none; width: ' +
 		(doc.documentElement.clientWidth - 55) + 'px; height: 1px;"><div id="de-fav-wait" ' +
-		'class="de-wait" style="font-size: 1.1em; text-align: center">' + Lng.loading[lang] + '</div>'
-	);
-}
-
-function loadPageHelper(i, Fn) {
-	ajaxGetPosts(aib.getPageUrl(brd, i), false, function(idx, dc) {
-		this(replacePost(doc.importNode($q(aib.qDForm, dc), true)), idx);
-	}.bind(Fn, i), null);
+		'class="de-wait" style="font-size: 1.1em; text-align: center">' + Lng.loading[lang] + '</div>');
 }
 
 function parsePages(pages, node) {
@@ -3484,7 +3418,7 @@ function preparePage() {
 			window.URL.revokeObjectURL(a.href);
 		});
 	}
-	pr.showMainReply();
+	//pr.showMainReply();
 	$disp(dForm);
 	Pview.clearCache();
 	isExpImg = false;
@@ -3493,12 +3427,15 @@ function preparePage() {
 function loadPages(len) {
 	preparePage();
 	for(var el = doc.createElement('div'), i = 0, pages = new Array(len), loaded = 1; i < len; i++) {
-		loadPageHelper(i, function(pg, idx) {
-			pages[idx] = pg;
+		ajaxGetPosts(aib.getPageUrl(brd, i), function(idx, dc) {
+			pages[idx] = replacePost(doc.importNode($q(aib.qDForm, dc), true));
 			if(loaded === len) {
 				pages.forEach(function(page, pNum) {
 					$append(el, pNum === 0 ? [page] : [
-						$new('center', {'text': pNum + ' ' + Lng.page[lang], 'style': 'font-size: 2em;'}, null),
+						$new('center', {
+							'text': pNum + ' ' + Lng.page[lang],
+							'style': 'font-size: 2em;'
+						}, null),
 						doc.createElement('hr'),
 						page
 					]);
@@ -3508,7 +3445,7 @@ function loadPages(len) {
 			} else {
 				loaded++;
 			}
-		});
+		}.bind(null, i));
 	}
 }
 
@@ -3532,7 +3469,7 @@ function getHanaFile(file, id) {
 		thumbH = file['thumb_height'],
 		size = file['size'],
 		rating = file['rating'],
-		maxRating = getCookie('de-rating') || 'r-15',
+		maxRating = Cfg['__hanarating'] || 'r-15',
 		kb = 1024,
 		mb = 1048576,
 		gb = 1073741824;
@@ -3544,8 +3481,7 @@ function getHanaFile(file, id) {
 			name = name.substring(0, 17) + '...';
 		}
 	}
-	thumb =
-		rating === 'r-18g' && maxRating !== 'r-18g' ? 'images/r-18g.png' :
+	thumb = rating === 'r-18g' && maxRating !== 'r-18g' ? 'images/r-18g.png' :
 		rating === 'r-18' && (maxRating !== 'r-18g' || maxRating !== 'r-18') ? 'images/r-18.png' :
 		rating === 'r-15' && maxRating === 'sfw' ? 'images/r-15.png' :
 		rating === 'illegal' ? 'images/illegal.png' :
@@ -3554,12 +3490,12 @@ function getHanaFile(file, id) {
 		thumbW = 200;
 		thumbH = 200;
 	}
-	return '<div class="file"><div class="fileinfo">Файл: <a href="/' + src + '" target="_blank">'
-		+ name + '</a><br><em>' + file['thumb'].substring(file['thumb'].lastIndexOf('.') + 1) + ', ' + (
-			size < kb ? size + ' B'
-			: size < mb ? (size / kb).toFixed(2) + ' KB'
-			: size < gb ? (size / mb).toFixed(2) + ' MB'
-			: (size / gb).toFixed(2) + ' GB'
+	return '<div class="file"><div class="fileinfo">Файл: <a href="/' + src + '" target="_blank">' +
+		name + '</a><br><em>' + file['thumb'].substring(file['thumb'].lastIndexOf('.') + 1) + ', ' + (
+			size < kb ? size + ' B' :
+			size < mb ? (size / kb).toFixed(2) + ' KB' :
+			size < gb ? (size / mb).toFixed(2) + ' MB' :
+			(size / gb).toFixed(2) + ' GB'
 		) + ', ' + file['metadata']['width'] + 'x' + file['metadata']['height'] +
 		'</em><br><a class="edit_ icon" href="/utils/image/edit/' + file['file_id'] + '/' + id +
 		'"><img title="edit" alt="edit" src="/images/blank.png"></a></div><a href="/' + src +
@@ -3635,7 +3571,6 @@ function getImgHash(post) {
 //													SPELLS
 //============================================================================================================
 
-/** @constructor */
 function Spells(read) {
 	if(read) {
 		this._read(true);
@@ -3804,7 +3739,7 @@ Spells.prototype = {
 							j++;
 						}
 						if(j > 4 && j > n && x) {
-							Spells._lastWipeMsg = 'same lines: "' + x.substr(0, 20) + '" x' + j;
+							Spells._lastWipeMsg = 'same lines: "' + x.substr(0, 20) + '" x' + (j + 1);
 							return true;
 						}
 					}
@@ -3826,7 +3761,7 @@ Spells.prototype = {
 								pop = j;
 							}
 							if(pop >= n) {
-								Spells._lastWipeMsg = 'same words: "' + x.substr(0, 20) + '" x' + pop;
+								Spells._lastWipeMsg = 'same words: "' + x.substr(0, 20) + '" x' + (pop + 1);
 								return true;
 							}
 						}
@@ -3897,7 +3832,7 @@ Spells.prototype = {
 					return true;
 				}
 			}
-			return Spells._lastWipeMsg = false;
+			return false;
 		},
 		// 15: #num
 		function spell_num(post, val) {
@@ -4133,8 +4068,7 @@ Spells.prototype = {
 				break;
 			case '(':
 				if(this._lastType === 2 || this._lastType === 4) {
-					this._error = Lng.seMissOp[lang] +
-						Lng.seRow[lang] + line + Lng.seCol[lang] + col + ')';
+					this._error = Lng.seMissOp[lang] + Lng.seRow[lang] + line + Lng.seCol[lang] + col + ')';
 					return false;
 				}
 				scopes.push(scope);
@@ -4202,7 +4136,9 @@ Spells.prototype = {
 				}
 			} else {
 				scope = spell[2];
-				if(!scope || (scope[0] === brd && (scope[1] === -1 ? !TNum : (!scope[1] || scope[1] === TNum)))) {
+				if(!scope || (scope[0] === brd &&
+					(scope[1] === -1 ? !TNum : (!scope[1] || scope[1] === TNum))))
+				{
 					if(type === 12) {
 						neg = !neg;
 					} else {
@@ -4242,8 +4178,9 @@ Spells.prototype = {
 				return neg ? [[12, '']] : null;
 			}
 		}
-		return newSpells.length === 0 ? null : newSpells.length === 1 && newSpells[0][0] === 0xFF ?
-			newSpells[0][1] : newSpells;
+		return newSpells.length === 0 ? null :
+			newSpells.length === 1 && newSpells[0][0] === 0xFF ? newSpells[0][1] :
+			newSpells;
 	},
 	_initSpells: function(data) {
 		if(data) {
@@ -4487,9 +4424,9 @@ Spells.prototype = {
 		return [str, reps.length === 0 ? false : reps, outreps.length === 0 ? false : outreps];
 	},
 	_decompileRep: function(rep, isOrep) {
-		return (isOrep ? '#outrep' : '#rep') + (rep[0] ? '[' + rep[0] +
-			(rep[1] ? ',' + (rep[1] === -1 ? '' : rep[1]) : '') + ']' : '') + '(' + rep[2] + ',' +
-			rep[3] + ')';
+		return (isOrep ? '#outrep' : '#rep') +
+			(rep[0] ? '[' + rep[0] + (rep[1] ? ',' + (rep[1] === -1 ? '' : rep[1]) : '') + ']' : '') +
+			'(' + rep[2] + ',' + rep[3] + ')';
 	},
 	_optimizeReps: function(data) {
 		if(data) {
@@ -4763,7 +4700,6 @@ function scriptCSS() {
 	// Settings window
 	x += '.de-block { display: block; }\
 		#de-content-cfg > div { float: left; border-radius: 10px 10px 0 0; width: auto; min-width: 0; padding: 0; margin: 5px 20px; overflow: hidden; }\
-		#de-cfg-info > div { float: left; }\
 		#de-cfg-head { padding: 4px; border-radius: 10px 10px 0 0; color: #fff; text-align: center; font: bold 14px arial; cursor: default; }\
 		#de-cfg-head:lang(en), #de-panel:lang(en) { background: linear-gradient(to bottom, #4b90df, #3d77be 5px, #376cb0 7px, #295591 13px, rgba(0,0,0,0) 13px), linear-gradient(to bottom, rgba(0,0,0,0) 12px, #183d77 13px, #1f4485 18px, #264c90 20px, #325f9e 25px); }\
 		#de-cfg-head:lang(fr), #de-panel:lang(fr) { background: linear-gradient(to bottom, #7b849b, #616b86 2px, #3a414f 13px, rgba(0,0,0,0) 13px), linear-gradient(to bottom, rgba(0,0,0,0) 12px, #121212 13px, #1f2740 25px); }\
@@ -4821,7 +4757,6 @@ function scriptCSS() {
 	gif('#de-btn-gonext', p + 'IrjI+pywjQonuy2iuf3lzjD4Zis0Xd6YnQyLbua61tSqJnbXcqHVLwD0QUAAA7');
 	gif('#de-btn-goup', p + 'IsjI+pm+DvmDRw2ouzrbq9DmKcBpVfN4ZpyLYuCbgmaK7iydpw1OqZf+O9LgUAOw==');
 	gif('#de-btn-godown', p + 'ItjI+pu+DA4ps02osznrq9DnZceIxkYILUd7bue6WhrLInLdokHq96tnI5YJoCADs=');
-	gif('#de-btn-newthr', p + 'IyjI+pG+APQYMsWsuy3rzeLy2g05XcGJqqgmJiS63yTHtgLaPTY8Np4uO9gj0YbqM7bgoAOw==');
 	gif('#de-btn-expimg', p + 'I9jI+pGwDn4GPL2Wep3rxXFEFel42mBE6kcYXqFqYnVc72jTPtS/KNr5OJOJMdq4diAXWvS065NNVwseehAAA7');
 	gif('#de-btn-maskimg', p + 'JQjI+pGwD3TGxtJgezrKz7DzLYRlKj4qTqmoYuysbtgk02ZCG1Rkk53gvafq+i8QiSxTozIY7IcZJOl9PNBx1de1Sdldeslq7dJ9gsUq6QnwIAOw==');
 	gif('#de-btn-imgload', p + 'JFjI+pG+CQnHlwSYYu3rz7RoVipWib+aVUVD3YysAledKZHePpzvecPGnpDkBQEEV03Y7DkRMZ9ECNnemUlZMOQc+iT1EAADs=')
@@ -4971,7 +4906,10 @@ function scriptCSS() {
 		.de-menu-item:hover { background-color: #222; color: #fff; }\
 		.de-omitted { color: grey; font-style: italic; }\
 		.de-omitted:before { content: "' + Lng.postsOmitted[lang] + '"; }\
-		#de-parea { text-align: center;}\
+		.de-parea { text-align: center;}\
+		.de-parea-btn-close:after { content: "' + Lng.hideForm[lang] + '"}\
+		.de-parea-btn-thrd:after { content: "' + Lng.makeThrd[lang] + '"}\
+		.de-parea-btn-reply:after { content: "' + Lng.makeReply[lang] + '"}\
 		.de-ref-hid { text-decoration: line-through !important; }\
 		.de-refmap { margin: 10px 4px 4px 4px; font-size: 70%; font-style: italic; }\
 		.de-refmap:before { content: "' + Lng.replies[lang] + ' "; }\
@@ -4984,7 +4922,7 @@ function scriptCSS() {
 		.de-pview-info { padding: 3px 6px !important; }\
 		.de-pview-link { font-weight: bold; }\
 		.de-opref::after { content: " [OP]"; }\
-		.de-hidden' + (aib._4chon ? ', .de-hidden + br' : '') + ', small[id^="rfmap"], body > hr, .theader, .postarea { display: none !important; }\
+		.de-hidden' + (aib._4chon ? ', .de-hidden + br' : '') + ', small[id^="rfmap"], body > hr, .theader, .postarea, .thumbnailmsg { display: none !important; }\
 		form > hr { clear: both }\
 		' + aib.css;
 
@@ -5132,7 +5070,7 @@ function PostForm(form, ignoreForm, init) {
 	}
 	if(!ignoreForm && !form) {
 		if(this.oeForm) {
-			ajaxGetPosts(aib.getThrdUrl(brd, aib.getTNum(dForm)), false, function(dc) {
+			ajaxGetPosts(aib.getThrdUrl(brd, aib.getTNum(dForm)), function(dc) {
 				pr = new PostForm(doc.importNode($q(aib.qPostForm, dc), true), true, init);
 			}, function(eCode, eMsg) {
 				pr = new PostForm(null, true, init);
@@ -5212,7 +5150,9 @@ PostForm.processInput = function() {
 				$pd(e);
 				var el = this.parentNode;
 				PostForm.delFileUtils(el);
-				$event(pr.file = $q('input[type="file"]', $html(el, el.innerHTML)), {'change': PostForm.processInput});
+				$event(pr.file = $q('input[type="file"]', $html(el, el.innerHTML)), {
+					'change': PostForm.processInput
+				});
 			}
 		}));
 	} else if(this.imgFile) {
@@ -5261,7 +5201,10 @@ PostForm.processInput = function() {
 };
 PostForm.prototype = {
 	isQuick: false,
-	pArea: null,
+	select: 0,
+	pForm: null,
+	pArea: [],
+	qArea: null,
 	addTextPanel: function() {
 		var i, len, tag, html, btns, tPanel = $id('de-txt-panel');
 		if(!Cfg['addTextBtns']) {
@@ -5276,8 +5219,7 @@ PostForm.prototype = {
 		}
 		tPanel.style.cssFloat = Cfg['txtBtnsLoc'] ? 'none' : 'right';
 		$after(Cfg['txtBtnsLoc'] ? $id('de-txt-resizer') || this.txta :
-			aib._420 ? $c('popup', this.form) : this.subm, tPanel
-		);
+			aib._420 ? $c('popup', this.form) : this.subm, tPanel);
 		for(html = '', i = 0, btns = aib.formButtons, len = btns['id'].length; i < len; ++i) {
 			tag = btns['tag'][i];
 			if(tag === '') {
@@ -5313,9 +5255,8 @@ PostForm.prototype = {
 				start = x.selectionStart;
 				end = x.selectionEnd;
 				if(id === 'de-btn-quote') {
-					$txtInsert(x, '> ' + (
-						start === end ? quotetxt : x.value.substring(start, end)
-					).replace(/\n/gm, '\n> '));
+					$txtInsert(x, '> ' + (start === end ? quotetxt : x.value.substring(start, end))
+						.replace(/\n/gm, '\n> '));
 				} else if(id === 'de-btn-emoticon') {
 					var panel = $id('de-btn-emoticon');
 					var emoticonsDiv = $id('de-div-emoticons');
@@ -5357,8 +5298,8 @@ PostForm.prototype = {
 						txt = '';
 						x.value.substring(start, end).split('\n').forEach(function(line) {
 							var m = line.match(/^(\s*)(.*?)(\s*)$/);
-							txt += '\n' + m[1] + (tag !== '^H' ? tag + m[2] + tag
-								: m[2] + new Array(m[2].length + 1).join('^H')
+							txt += '\n' + m[1] + (
+								tag !== '^H' ? tag + m[2] + tag : m[2] + new Array(m[2].length + 1).join('^H')
 							) + m[3];
 						});
 						txt = txt.slice(1);
@@ -5407,15 +5348,22 @@ PostForm.prototype = {
 			postTypeIndicator.innerHTML = Lng.postingTypes[1][lang] + tNum;
 		}
 		if(this.isQuick) {
-			if(post.wrap.nextElementSibling === this._qArea) {
-				$disp(this._qArea);
+			if(post.wrap.nextElementSibling === this.qArea) {
+				if(Cfg['addPostForm'] > 1) {
+					$disp(this.pForm);
+				} else {
+					this.updatePAreaBtns();
+				}
+				$disp(this.qArea);
 				this.showMainReply();
 				return;
 			}
 		} else {
 			this.isQuick = true;
-			this._qArea.appendChild(this._pForm);
-			$disp(this._tReply);
+			this.qArea.appendChild(this.pForm);
+			this.pForm.style.display = '';
+			$t('a', this._pBtn[this.select]).className =
+				'de-abtn de-parea-btn-' + (TNum ? 'reply' : 'thrd');
 			if(!aib.dontSubstThrId && !TNum && !aib.kus && !aib.hana) {
 				if(this.oeForm) {
 					$del($q('input[name="oek_parent"]', this.oeForm));
@@ -5424,21 +5372,20 @@ PostForm.prototype = {
 				}
 				if(this.form) {
 					$del($q('#thr_id, input[name="parent"]', this.form));
-					this.form.insertAdjacentHTML('afterbegin', '<input type="hidden" id="thr_id" value="' + tNum + '" name="' + (
-						aib.fch || aib.futa ? 'resto' :
-						aib.tiny ? 'thread' :
-						'parent'
-					) + '">');
+					this.form.insertAdjacentHTML('afterbegin',
+						'<input type="hidden" id="thr_id" value="' + tNum + '" name="' + (
+							aib.fch || aib.futa ? 'resto' :
+							aib.tiny ? 'thread' :
+							'parent'
+						) + '">'
+					);
 				}
 			}
 		}
-		$after(post.wrap, this._qArea);
-		this._qArea.style.display = '';
+		$after(post.wrap, this.qArea);
+		this.qArea.style.display = '';
 		if(!TNum) {
 			this._toggleQuickReply(tNum);
-			if(Cfg['noThrdForm']) {
-				this.pArea.style.display = 'none';
-			}
 		}
 		if(!this.form) {
 			return;
@@ -5454,7 +5401,7 @@ PostForm.prototype = {
 		}
 		$txtInsert(this.txta, '>>' + post.num + (quotetxt || '').replace(/(?:^|\n)(.)/gm, '\n> $1') + '\n');
 		if(Cfg['addPostForm'] === 3) {
-			$attr($t('a', this._qArea.firstChild), {'href': aib.getThrdUrl(brd, tNum), 'text': '#' + tNum});
+			$attr($t('a', this.qArea.firstChild), {'href': aib.getThrdUrl(brd, tNum), 'text': '#' + tNum});
 		}
 	},
 	showMainReply: function() {
@@ -5464,31 +5411,43 @@ PostForm.prototype = {
 				this._toggleQuickReply(0);
 				$del($id('thr_id'));
 			}
-			$disp(this._tReply);
-			this._qArea.style.display = 'none';
-			$after(this.pArea, this._qArea);
-			$after(this._tReply, this._pForm);
+			this.qArea.style.display = 'none';
+			$after(this.pArea[this.select], this.qArea);
+			$after(this._pBtn[this.select], this.pForm);
 		}
 	},
 	toggleMainReply: function(e) {
 		$pd(e);
+		var select = +!(e.target.parentNode.parentNode.id === 'de-parea-up');
 		if(this.isQuick) {
-			this.pArea.style.display = '';
+			this.pForm.style.display = '';
+			this.select = select;
 			this.showMainReply();
 		} else {
-			$disp(this.pArea);
+			if(this.select === select) {
+				$disp(this.pForm);
+			} else {
+				this.pForm.style.display = '';
+				$after(this._pBtn[select], this.pForm);
+			}
+			this.select = select;
 		}
+		this.updatePAreaBtns();
+		scrollTo(0, pageYOffset + this.pForm.getBoundingClientRect().top);
 		var postTypeIndicator = $id('posttypeindicator');
 		if(postTypeIndicator) {
 			postTypeIndicator.innerHTML = Lng.postingTypes[0][lang];
 		}
-		$scroll(this.pArea.getBoundingClientRect().top, null, null);
+	},
+	updatePAreaBtns: function() {
+		var txt = 'de-abtn de-parea-btn-',
+			rep = TNum ? 'reply' : 'thrd';
+		$t('a', this._pBtn[this.select]).className = txt + (this.pForm.style.display === '' ? 'close' : rep);
+		$t('a', this._pBtn[+!this.select]).className = txt + rep;
 	},
 
-	_qArea: null,
 	_lastCapUpdate: 0,
-	_pForm: null,
-	_tReply: null,
+	_pBtn: [],
 	_addResizer: function() {
 		var resMove = function(e) {
 				var p = $offset(this);
@@ -5506,36 +5465,37 @@ PostForm.prototype = {
 		}}));
 	},
 	_getCaptcha: function() {
-		return $q('input[type="text"][name*="aptcha"]:not([name="recaptcha_challenge_field"])', this.form) || this.recap;
+		return $q('input[type="text"][name*="aptcha"]:not([name="recaptcha_challenge_field"])', this.form) ||
+			this.recap;
 	},
 	_getReCaptcha: function() {
 		return $id('recaptcha_response_field');
 	},
 	_init: function() {
-		var el, btn, pArea = $New('div', {'id': 'de-parea'}, [
-			this._tReply = $New('div', {'style': 'display: none;'}, [
-				$txt('['),
-				$new('a', {'text': Lng.expandForm[lang], 'href': '#', 'class': 'de-abtn'}, {
-					'click': this.toggleMainReply.bind(this)
-				}),
-				$txt(']')
-			]),
-			this._pForm = $New('div', {'id': 'de-pform'}, [this.form, this.oeForm]),
-			doc.createElement('hr')
+		this.pForm = $New('div', {'id': 'de-pform'}, [this.form, this.oeForm]);
+		if(!TNum || Cfg['addPostForm'] > 1) {
+			$disp(this.pForm);
+		}
+		var btn = $New('div', null, [
+			$txt('['),
+			$new('a', {'href': '#'}, {'click': this.toggleMainReply.bind(this)}),
+			$txt(']')
 		]);
-		if(TNum && Cfg['addPostForm'] === 1) {
-			$after(aib.fch ? $t('hr', dForm) : dForm, pArea);
-		} else {
-			$before(dForm, pArea);
-		}
-		if(TNum && Cfg['addPostForm'] > 1 || !TNum && Cfg['noThrdForm']) {
-			$disp(pArea);
-		}
-		pArea.insertAdjacentHTML('afterend', '<div id="de-qarea" class="' + aib.cReply + '" style="display: none;"></div>');
-		this.pArea = pArea;
-		this._qArea = pArea.nextSibling;
+		$before(dForm, this.pArea[0] =
+			$New('div', {'class': 'de-parea', 'id': 'de-parea-up'}, [btn, doc.createElement('hr')]));
+		this._pBtn[0] = btn;
+		btn = btn.cloneNode(true);
+		$event($t('a', btn), {'click': this.toggleMainReply.bind(this)});
+		$after(aib.fch ? $t('hr', dForm) : dForm, this.pArea[1] =
+			$New('div', {'class': 'de-parea', 'id': 'de-parea-down'}, [btn, doc.createElement('hr')]));
+		this._pBtn[1] = btn;
+		$after(this._pBtn[this.select = +(Cfg['addPostForm'] === 1)], this.pForm);
+		this.updatePAreaBtns();
+		this.pArea[this.select].insertAdjacentHTML('afterend', '<div id="de-qarea" class="' +
+			aib.cReply + '" style="display: none;"></div>');
+		this.qArea = this.pArea[this.select].nextSibling;
 		if(Cfg['addPostForm'] === 3) {
-			$append(this._qArea, [
+			$append(this.qArea, [
 				$add('<span id="de-qarea-target">' + Lng.replyTo[lang] + ' <a class="de-abtn"></a></span>'),
 				$new('span', {'id': 'de-qarea-close', 'text': '×'}, {'click': this.showMainReply.bind(this)})
 			]);
@@ -5584,11 +5544,9 @@ PostForm.prototype = {
 			if(Cfg['userSignat'] && sVal) {
 				val += '\n' + sVal;
 			}
-			if(this.tNum && ($c('filetitle', pByNum[this.tNum].el) || {}).textContent ===
-				'Dollchan Extension Tools' && !/`\-{50}`$/.test(val)) {
-				val += '\n\n`--------------------------------------------------`\n' +
-					'`' + window.navigator.userAgent + '`\n`v' + version + '`' +
-					'\n`--------------------------------------------------`';
+			if(this.tNum && pByNum[this.tNum].subj === 'Dollchan Extension Tools' && !/`\-{50}`/.test(val)) {
+				val += '\n\n`' + new Array(51).join('-') +
+					'`\n`' + navigator.userAgent + '`\n`v' + version + '`';
 			}
 			this.txta.value = val;
 			if(Cfg['ajaxReply']) {
@@ -5601,8 +5559,9 @@ PostForm.prototype = {
 				this.video.value = aib.nul ? val[1] : 'http://www.youtube.com/watch?v=' + val[1];
 			}
 			if(this.isQuick) {
-				$disp(this._qArea);
-				$after(this._tReply, this._pForm);
+				$disp(this.pForm);
+				$disp(this.qArea);
+				$after(this._pBtn[this.select], this.pForm);
 			}
 		}.bind(this)});
 		$each($Q('input[type="text"], input[type="file"]', this.form), function(node) {
@@ -5763,9 +5722,9 @@ PostForm.prototype = {
 			i.src = this._refreshCapSrc(
 				aib._410 ? ('/faptcha.php?board=' + brd)
 					: aib.kie ? ('/faptcha.php?dummy=' + Math.random())
-					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random())
 					: (aib.kiw || aib.rak) ? ('/captcha.php?dummy=' + Math.random())
-					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random())
+					: aib.hid ? ('/securimage/securimage_show.php?' + Math.random()) 
+					: aib.kus ? ('/' + brd.substr(0, brd.indexOf('/') + 1) + 'captcha.php?' + Math.random()) 
 					: (img ? img.src : '/' + brd + '/captcha.pl?key=mainpage&amp;dummy=' + Math.random()),
 				TNum || 0
 			);
@@ -6007,9 +5966,6 @@ Post.prototype = {
 					} else if(Cfg['insertNum'] && pr.form && temp === this._pref &&
 						!/Reply|Ответ/.test(el.textContent))
 					{
-						if(!TNum && Cfg['noThrdForm'] && !pr.isQuick) {
-							pr.pArea.style.display = '';
-						}
 						if(TNum && Cfg['addPostForm'] > 1 && !pr.isQuick) {
 							pr.showQuickReply(this);
 						} else {
@@ -6329,7 +6285,8 @@ Post.prototype = {
 		if(Cfg['delHiddPost']) {
 			if(hide) {
 				this.wrap.classList.add('de-hidden');
-				this.wrap.insertAdjacentHTML('beforebegin', '<span style="counter-increment: de-cnt 1;"></span>');
+				this.wrap.insertAdjacentHTML('beforebegin',
+					'<span style="counter-increment: de-cnt 1;"></span>');
 			} else if(this.hidden) {
 				this.wrap.classList.remove('de-hidden');
 				$del(this.wrap.previousSibling);
@@ -6414,7 +6371,6 @@ Post.prototype = {
 		for(var post = this.next; post; post = post.next) {
 			delete post.offsetTop;
 		}
-		return hide;
 	},
 	get trunc() {
 		var el = $q(aib.qTrunc, this.el), val = null;
@@ -6459,8 +6415,8 @@ Post.prototype = {
 	},
 	updateMsg: function(fullPost) {
 		var origMsg = aib.hana ? this.msg.firstElementChild : this.msg,
-			newMsg = replacePost(aib.hana ? $q('.alternate > div', this.el)
-				: doc.importNode($q(aib.qMsg, fullPost), true)),
+			newMsg = replacePost(aib.hana ? $q('.alternate > div', this.el) :
+				doc.importNode($q(aib.qMsg, fullPost), true)),
 			ytExt = $c('de-ytube-ext', origMsg),
 			ytLinks = $Q(':not(.de-ytube-ext) > .de-ytube-link', origMsg);
 		origMsg.parentNode.replaceChild(newMsg, origMsg);
@@ -6699,7 +6655,7 @@ Post.prototype = {
 		var vis = sVis[i];
 		if(uVis[num]) {
 			if(isOp) {
-				uVis[num][0] = (num in hThr[brd]) ? 0 : 1;
+				uVis[num][0] = +!(num in hThr[brd]);
 			}
 			if(uVis[num][0] === 0) {
 				this.setUserVisib(true, Date.now(), false);
@@ -6791,14 +6747,16 @@ Post.prototype = {
 				(nav.matchesSelector(start, '.' + aib.cSubj) && nav.matchesSelector(end, '.' + aib.cSubj))
 			) {
 				if(this._selText.contains('\n')) {
-					addSpell(1 /* #exp */, '/' + regQuote(this._selText).replace(/\n/g, '\\n').replace(/\r/g, '') + '/', false);
+					addSpell(1 /* #exp */, '/' +
+						regQuote(this._selText).replace(/\r?\n/g, '\\n') + '/', false);
 				} else {
 					addSpell(0 /* #words */, this._selText.replace(/\)/g, '\\)').toLowerCase(), false);
 				}
 			} else {
 				dummy.innerHTML = '';
 				dummy.appendChild(this._selRange.cloneContents());
-				addSpell(2 /* #exph */, '/' + regQuote(dummy.innerHTML.replace(/^<[^>]+>|<[^>]+>$/g, '')) + '/', false);
+				addSpell(2 /* #exph */, '/' +
+					regQuote(dummy.innerHTML.replace(/^<[^>]+>|<[^>]+>$/g, '')) + '/', false);
 			}
 			return;
 		case 'spell-trip': addSpell(7 /* #trip */, this.posterTrip.replace(/\)/g, '\\)'), false); return;
@@ -6861,12 +6819,12 @@ Post.prototype = {
 		if(!isInit) {
 			$alert(Lng.loading[lang], 'load-fullmsg', true);
 		}
-		ajaxGetPosts(aib.getThrdUrl(brd, this.thr.num), true, function(node, els, op) {
-			var i, len, el;
+		ajaxGetPosts(aib.getThrdUrl(brd, this.thr.num), function(node, dc) {
+			var i, els, len, el, thr = parsePage($q(aib.qDForm, dc), dc, null, false).el;
 			if(this.isOp) {
-				el = op;
+				el = aib.getOp(thr, dc);
 			} else {
-				for(i = 0, len = els.length; i < len; i++) {
+				for(i = 0, els = aib.getPosts(thr), len = els.length; i < len; i++) {
 					if(this.num === aib.getPNum(els[i])) {
 						el = els[i];
 						break;
@@ -6946,7 +6904,7 @@ function Pview(parent, link, tNum, pNum) {
 			this._showPost(post);
 		} else {
 			this._showText('<span class="de-wait">' + Lng.loading[lang] + '</span>');
-			ajaxGetPosts(aib.getThrdUrl(b, tNum), false, this._onload.bind(this, b, tNum, pNum));
+			ajaxGetPosts(aib.getThrdUrl(b, tNum), this._onload.bind(this, b, tNum, pNum));
 		}
 	}
 }
@@ -7027,8 +6985,8 @@ Pview.prototype = Object.create(Post.prototype, {
 		var panel, cnt = post.count - post.dcount,
 			el = this.el = post.el.cloneNode(true),
 			pText = (post.sage ? '<span class="de-btn-sage" title="SAGE"></span>' : '') +
-			(post.deleted ? '' : '<span style="margin-right: 4px; vertical-align: 1px; color: #4f7942; ' +
-			'font: bold 11px tahoma; cursor: default;">' + (cnt === 0 ? 'OP' : cnt + 1) + '</span>');
+				(post.deleted ? '' : '<span style="margin-right: 4px; vertical-align: 1px; color: #4f7942; ' +
+				'font: bold 11px tahoma; cursor: default;">' + (cnt === 0 ? 'OP' : cnt + 1) + '</span>');
 		el.post = this;
 		el.className = aib.cReply + ' de-pview' + (post.viewed ? ' de-viewed' : '');
 		el.style.display = '';
@@ -7331,8 +7289,10 @@ Thread.prototype = {
 		if(!Fn) {
 			$alert(Lng.loading[lang], 'load-thr', true);
 		}
-		ajaxGetPosts(aib.getThrdUrl(brd, this.num), true, function(last, Fn, els, newOp) {
-			var post, len = els.length,
+		ajaxGetPosts(aib.getThrdUrl(brd, this.num), function(last, Fn, dc) {
+			var post, thr = parsePage($q(aib.qDForm, dc), dc, null, false).el,
+				els = aib.getPosts(thr),
+				len = els.length,
 				op = this.op,
 				opEl = op.el,
 				thrEl = this.el,
@@ -7341,7 +7301,7 @@ Thread.prototype = {
 			$del($q(aib.qOmitted + ', .de-omitted', thrEl));
 			if(!this.loadedOnce) {
 				if(op.trunc) {
-					op.updateMsg(newOp);
+					op.updateMsg(aib.getOp(thr, dc));
 				}
 				delete op.ref;
 				for(post = op.next; post && post.count !== 0; post = post.next) {
@@ -7370,7 +7330,7 @@ Thread.prototype = {
 			}
 			this.loadedOnce = true;
 			closeAlert($id('de-alert-load-thr'));
-			$scroll(opEl.getBoundingClientRect().top, null, null);
+			scrollTo(0, pageYOffset + opEl.getBoundingClientRect().top);
 			Fn && Fn();
 		}.bind(this, last, Fn), function(eCode, eMsg) {
 			$alert(getErrorMessage(eCode, eMsg), 'load-thr', false);
@@ -7412,10 +7372,11 @@ Thread.prototype = {
 			);
 			return;
 		}
-		ajaxGetPosts(aib.getThrdUrl(brd, TNum), true, function parseNewPosts(els, op) {
-			var newPosts = this._parsePosts(els, 0, 0),
+		ajaxGetPosts(aib.getThrdUrl(brd, TNum), function parseNewPosts(dc) {
+			var thr = parsePage($q(aib.qDForm, dc), dc, null, false).el,
+				newPosts = this._parsePosts(aib.getPosts(thr), 0, 0),
 				hiddenPosts = newPosts > 0 ? this.checkSpells() : 0;
-			this._checkBan(this.op, op);
+			this._checkBan(this.op, aib.getOp(thr, dc));
 			Fn(200, '', newPosts - hiddenPosts);
 			$id('de-panel-info').firstChild.textContent = this.pcount + '/' + getImages(dForm).length;
 			if(newPosts > 0) {
@@ -7634,7 +7595,8 @@ Thread.prototype = {
 
 function ImageBoard() {
 	var i, inf, dm;
-	dm = window.location.hostname.match(/(?:(?:[^.]+\.)(?=org\.|net\.|com\.))?[^.]+\.[^.]+$|^\d+\.\d+\.\d+\.\d+$|localhost/)[0];
+	dm = window.location.hostname
+		.match(/(?:(?:[^.]+\.)(?=org\.|net\.|com\.))?[^.]+\.[^.]+$|^\d+\.\d+\.\d+\.\d+$|localhost/)[0];
 	if(inf = this._bDomains[dm]) {
 		aib = this._createBoard(inf);
 	} else {
@@ -7819,11 +7781,12 @@ ImageBoard.prototype = {
 		'410chan.org': [{
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['**', '*', '__', '^^', '%%', '`', '', '', 'q'] }
+					tag: { value: ['**', '*', '__', '^^', '%%', '`', '', '', 'q'] }
 				});
 			} },
 			getSage: { value: function(post) {
-				return !!$x('.//span[@class="filetitle" and contains(text(),"' + unescape('%u21E9') + '")]', post);
+				return !!$x('.//span[@class="filetitle" and contains(text(),"' +
+					unescape('%u21E9') + '")]', post);
 			} },
 			timePattern: { value: 'dd+nn+yyyy++w++hh+ii+ss' },
 
@@ -7832,7 +7795,7 @@ ImageBoard.prototype = {
 		'420chan.org': [{
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['**', '*', '', '', '%', 'pre', '', '', 'q'] }
+					tag: { value: ['**', '*', '', '', '%', 'pre', '', '', 'q'] }
 				});
 			} },
 			qBan: { value: '.ban' },
@@ -7855,8 +7818,8 @@ ImageBoard.prototype = {
 			cReply: { value: 'post reply' },
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['**', '*', '__', '^H', 'spoiler', 'code', '', '', 'q'] },
-					'bb': { value: [false, false, false, false, true, true, false, false, false] }
+					tag: { value: ['**', '*', '__', '^H', 'spoiler', 'code', '', '', 'q'] },
+					bb: { value: [false, false, false, false, true, true, false, false, false] }
 				});
 			} },
 			qBan: { value: 'strong[style="color: red;"]' },
@@ -7884,13 +7847,14 @@ ImageBoard.prototype = {
 			css: { value: '.de-post-hid > .file, .de-post-hid > blockquote, .de-post-hid > .de-ytube-obj, .de-post-hid > .de-refmap, #mpostform, .navLinks, .postingMode { display: none !important; }' },
 			docExt: { value: '' },
 			rLinkClick: { value: '' },
+			rep: { value: true },
 
 			fch: { value: true }
 		}],
 		'4chon.net': [{
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['**', '*', '__', '', '%%', '', '', '', 'q'] }
+					tag: { value: ['**', '*', '__', '', '%%', '', '', '', 'q'] }
 				});
 			} },
 			appendPost: { value: function(el, parent) {
@@ -8016,7 +7980,7 @@ ImageBoard.prototype = {
 			cSubj: { value: 'postsubject' },
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['b', 'i', 'u', 's', 'spoiler', 'aa', '', '', 'q'] },
+					tag: { value: ['b', 'i', 'u', 's', 'spoiler', 'aa', '', '', 'q'] },
 				});
 			} },
 			qBan: { value: '.ban_mark' },
@@ -8046,6 +8010,7 @@ ImageBoard.prototype = {
 			} },
 			isBB: { value: true },
 			rLinkClick: { value: 'onclick="highlightPost(this.textContent.substr(2)))"' },
+			rep: { value: true },
 			res: { value: 'thread-' },
 
 			krau: { value: true }
@@ -8053,7 +8018,7 @@ ImageBoard.prototype = {
 		'mlpg.co': [{
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['b', 'i', 'u', '-', 'spoiler', 'c', '', '', 'q'] },
+					tag: { value: ['b', 'i', 'u', '-', 'spoiler', 'c', '', '', 'q'] },
 				});
 			} },
 			qTable: { value: '.replyContainer' },
@@ -8080,7 +8045,7 @@ ImageBoard.prototype = {
 		'#ABU_css': {
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ['b', 'i', 'u', 's', 'spoiler', 'code', 'sup', 'sub', 'q'] }
+					tag: { value: ['b', 'i', 'u', 's', 'spoiler', 'code', 'sup', 'sub', 'q'] }
 				});
 			} },
 			qBan: { value: 'font[color="#C12267"]' },
@@ -8182,7 +8147,7 @@ ImageBoard.prototype = {
 			cTrip: { value: 'trip' },
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
-					'tag': { value: ["'''", "''", '__', '^H', '**', '`', '', '', 'q'] },
+					tag: { value: ["'''", "''", '__', '^H', '**', '`', '', '', 'q'] },
 				});
 			} },
 			qDForm: { value: 'form[name="postcontrols"]' },
@@ -8244,8 +8209,10 @@ ImageBoard.prototype = {
 			ru: { value: true },
 			init: { value: function() {
 				if(window.location.pathname === '/settings') {
+					nav = new Navigator();
 					$event($q('input[type="button"]', doc), {'click': function() {
-						setCookie('de-rating', $id('rating').value, 1e12);
+						readCfg();
+						saveCfg('__hanarating', $id('rating').value);
 					}});
 					return true;
 				}
@@ -8280,11 +8247,11 @@ ImageBoard.prototype = {
 		get _formButtons() {
 			var bb = this.isBB;
 			return {
-				'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote'],
-				'val': ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;'],
-				'tag': bb ? ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q']
-						: ['**', '*', '', '^H', '%%', '`', '', '', 'q'],
-				'bb': [bb, bb, bb, bb, bb, bb, bb, bb, bb]
+				id: ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote'],
+				val: ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;'],
+				tag: bb ? ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q'] :
+					['**', '*', '', '^H', '%%', '`', '', '', 'q'],
+				bb: [bb, bb, bb, bb, bb, bb, bb, bb, bb]
 			};
 		},
 		get formButtons() {
@@ -8321,11 +8288,11 @@ ImageBoard.prototype = {
 		qPostForm: '#postform',
 		qRef: '.reflink',
 		qTable: '',
-		timePattern: { value: '' },
+		timePattern: '',
 		get qThread() {
 			var val = $c('thread', doc) ? '.thread' :
-				$q('div[id*="_info"][style*="float"]', doc) ?
-				'div[id^="t"]:not([style])' : '[id^="thread"]';
+				$q('div[id*="_info"][style*="float"]', doc) ? 'div[id^="t"]:not([style])' :
+				'[id^="thread"]';
 			Object.defineProperty(this, 'qThread', { value: val });
 			return val;
 		},
@@ -8343,7 +8310,8 @@ ImageBoard.prototype = {
 				text = el.textContent;
 				sz = text.match(/(\d+)[x×](\d+)/);
 				w = text.match(/(\d+(?:\.\d+)?)\s*([mkк])?i?[bб]/i);
-				return [sz[1], sz[2], w[2] === 'M' ? (w[1] * 1e3) | 0 : !w[2] ? Math.round(w[1] / 1e3) : w[1]];
+				return [sz[1], sz[2], w[2] === 'M' ? (w[1] * 1e3) | 0 :
+					!w[2] ? Math.round(w[1] / 1e3) : w[1]];
 			}
 			return [null, null, null];
 		},
@@ -8413,13 +8381,21 @@ ImageBoard.prototype = {
 		docExt: '.html',
 		host: window.location.hostname,
 		prot: window.location.protocol,
+		get rep() {
+			var val = dTime || spells.haveReps || Cfg['crossLinks'];
+			Object.defineProperty(this, 'rep', { value: val });
+			return val;
+		},
 		res: 'res/',
 		ru: false,
 		trTag: 'tr'
 	},
 	_createBoard: function(info) {
-		return Object.create(info[2] ? this._createBoard(this._bDomains[info[2]]) :
-			info[1] ? Object.create(this._base, this._bEngines[info[1]]) : this._base, info[0]);
+		return Object.create(
+			info[2] ? this._createBoard(this._bDomains[info[2]]) :
+			info[1] ? Object.create(this._base, this._bEngines[info[1]]) :
+			this._base, info[0]
+		);
 	}
 };
 
@@ -8506,21 +8482,8 @@ function Navigator() {
 	if(this.WebKit) {
 		window.URL = window.webkitURL;
 	}
-	if(!('requestAnimationFrame' in window)) {
-		window.requestAnimationFrame = window.mozRequestAnimationFrame ||
-			window.webkitRequestAnimationFrame || function(callback) {
-				setTimeout(function(fn) {
-					fn(performance.now());
-				}, 1000 / 60, callback);
-			};
-	}
-	if(!('performance' in window)) {
-		window.performance = {now: Date.now};
-	}
 }
 Navigator.prototype = {
-	showNotification: null,
-
 	animEvent: function(el, Fn) {
 		el.addEventListener(nav.animEnd, function aEvent() {
 			this.removeEventListener(nav.animEnd, aEvent, false);
@@ -8533,39 +8496,13 @@ Navigator.prototype = {
 		Object.defineProperty(this, 'canPlayMP3', { value: val });
 		return val;
 	},
-	get hasNotifications() {
-		var val = ('Notification' in window) || ('webkitNotifications' in window);
-		Object.defineProperty(this, 'hasNotifications', { value: val });
-		return val;
-	},
 	get matchesSelector() {
 		var dE = doc.documentElement,
-			fun = dE.matchesSelector || dE.mozMatchesSelector || dE.webkitMatchesSelector || dE.oMatchesSelector,
+			fun = dE.matchesSelector || dE.mozMatchesSelector ||
+				dE.webkitMatchesSelector || dE.oMatchesSelector,
 			val = Function.prototype.call.bind(fun);
 		Object.defineProperty(this, 'matchesSelector', { value: val });
 		return val;
-	},
-	get notifGranted() {
-		var val = false;
-		if('Notification' in window) {
-			this.showNotification = this._showNotifNative;
-			switch(Notification.permission) {
-			case 'default': this.requestNotifPermission(); return false;
-			case 'granted': val = true;
-			}
-		} else if('webkitNotifications' in window) {
-			this.showNotification = this._showNotifWebkit;
-			val = webkitNotifications.checkPermission() === 0;
-		}
-		Object.defineProperty(this, 'notifGranted', { value: val });
-		return val;
-	},
-	requestNotifPermission: function() {
-		if('Notification' in window) {
-			Notification.requestPermission()
-		} else if('webkitNotifications' in window) {
-			webkitNotifications.requestPermission();
-		}
 	},
 	get Worker() {
 		var val;
@@ -8583,24 +8520,6 @@ Navigator.prototype = {
 		}
 		Object.defineProperty(this, 'Worker', { value: val });
 		return val;
-	},
-
-	_showNotifNative: function(title, text, tag, image) {
-		var notif, obj = {body: text, tag: tag};
-		if(image) {
-			obj.icon = image;
-		}
-		notif = new Notification(title, obj);
-		notif.onshow = function() {
-			setTimeout(this.close.bind(this), 12e3);
-		};
-	},
-	_showNotifWebkit: function(title, text, tag, image) {
-		var notif = webkitNotifications.createNotification(image, title, text);
-		notif.ondisplay = function() {
-			setTimeout(this.cancel.bind(this), 12e3);
-		};
-		notif.show();
 	}
 };
 
@@ -8726,10 +8645,8 @@ function Initialization() {
 	}, false);
 
 	url = (window.location.pathname || '').match(new RegExp(
-		'^(?:\\/?([^\\.]*?)\\/?)?' +
-		'(' + regQuote(aib.res) + ')?' +
-		'(\\d+|index|wakaba|futaba)?' +
-		'(\\.(?:[a-z]+))?$'
+		'^(?:\\/?([^\\.]*?)\\/?)?' + '(' + regQuote(aib.res) + ')?' +
+		'(\\d+|index|wakaba|futaba)?' + '(\\.(?:[a-z]+))?$'
 	));
 	brd = url[1] || (aib.dfwk ? 'df' : '');
 	TNum = url[2] ? url[3] :
@@ -8875,34 +8792,30 @@ function replaceDelform() {
 }
 
 function initThreadUpdater(title, enableUpdater) {
-	var delay, checked404, loadTO, audioRep, focused, loadPostsFun, audioEl, stateButton, hasAudio,
+	var delay, checked404, loadTO, audioRep, loadPostsFun, audioEl, stateButton, hasAudio,
 		audioRun, initDelay, favIntrv, favNorm, favHref, enabled = false,
 		lastECode = 200,
 		newPosts = 0,
 		_title = title,
-		aPlayers = 0;
+		aPlayers = 0,
+		focused = !(doc.hidden || doc.webkitHidden);
 
 	if(enableUpdater) {
 		audioEl = null;
 		stateButton = null;
-		hasAudio = false;
-		audioRun = false;
+		hasAudio = audioRun = false;
 		initDelay = Cfg['updThrDelay'] * 1e3;
 		favIntrv = 0;
-		favNorm = true;
+		favNorm = notifGranted = true;
 		favHref = ($q('head link[rel="shortcut icon"]', doc) || {}).href;
-		if(nav.Firefox > 10 || nav.Chrome) {
-			doc.addEventListener(
-				(nav.WebKit ? 'webkit' : nav.Firefox < 18 ? 'moz' : '') + 'visibilitychange',
-				function() {
-					if(doc.hidden || doc.mozHidden || doc.webkitHidden) {
-						focused = false;
-					} else {
-						onVis();
-					}
-				}, false
-			);
-			focused = !(doc.hidden || doc.mozHidden || doc.webkitHidden);
+		if(nav.Firefox > 18 || nav.Chrome) {
+			doc.addEventListener((nav.WebKit ? 'webkit' : '') + 'visibilitychange', function() {
+				if(doc.hidden || doc.webkitHidden) {
+					focused = false;
+				} else {
+					onVis();
+				}
+			}, false);
 		} else {
 			focused = false;
 			$event(window, {
@@ -8916,16 +8829,19 @@ function initThreadUpdater(title, enableUpdater) {
 				}}
 			);
 		}
-		if(Cfg['desktNotif']) {
-			nav.notifGranted;
-		}
 		loadPostsFun = firstThr.loadNew.bind(firstThr, onLoaded, true);
 		enable();
+	}
+	if(focused && Cfg['desktNotif'] && ('permission' in Notification)) {
+		switch(Notification.permission.toLowerCase()) {
+		case 'default': requestNotifPermission(); break;
+		case 'denied': saveCfg('desktNotif', 0);
+		}
 	}
 
 	function enable() {
 		if(!enabled) {
-			enabled = focused = true;
+			enabled = true;
 			checked404 = false;
 			newPosts = 0;
 			delay = initDelay;
@@ -8961,7 +8877,8 @@ function initThreadUpdater(title, enableUpdater) {
 			hasAudio = true;
 		}
 	}
-	function getNotifMessage(np) {
+
+	function getNotifTitle(np) {
 		var rv = aib.dm + '/' + brd + '/' + TNum + ': ' + np;
 		switch(np % 10) {
 		case 1:
@@ -8978,9 +8895,20 @@ function initThreadUpdater(title, enableUpdater) {
 				rv += Lng.newPost[lang][3];
 				break;
 			}
-		default: rv += Lng.newPost[lang][2]; break;
+		default: rv += Lng.newPost[lang][2];
 		}
 		return rv + Lng.newPost[lang][0];
+	}
+
+	function requestNotifPermission() {
+		notifGranted = false;
+		Notification.requestPermission(function(state) {
+			if(state.toLowerCase() === 'denied') {
+				saveCfg('desktNotif', 0);
+			} else {
+				notifGranted = true;
+			}
+		});
 	}
 
 	function onLoaded(eCode, eMsg, lPosts) {
@@ -9013,19 +8941,30 @@ function initThreadUpdater(title, enableUpdater) {
 					favIntrv = setInterval(function() {
 						$del($q('link[rel="shortcut icon"]', doc.head));
 						doc.head.insertAdjacentHTML('afterbegin', '<link rel="shortcut icon" href="' +
-							(favNorm ? 'data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=' : favHref) +
-						'">');
+							(!favNorm ? favHref : 'data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAA' +
+							'AQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVR' +
+							'Ix2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=') + '">');
 						favNorm = !favNorm;
 					}, 800);
 				}
 				newPosts += lPosts;
 				doc.title = ' [' + newPosts + '] ' + title;
-				if(Cfg['desktNotif'] && nav.notifGranted) {
-					nav.showNotification(getNotifMessage(newPosts),
-						firstThr.last.text.substring(0, 250).replace(/\s+/g, ' '),
-						brd + TNum,
-						firstThr.last.imagesData['$firstSrc']
-					);
+				if(Cfg['desktNotif'] && notifGranted) {
+					var notif = new Notification(getNotifTitle(newPosts), {
+						'body': firstThr.last.text.substring(0, 250).replace(/\s+/g, ' '),
+						'tag': aib.dm + brd + TNum,
+						'icon': firstThr.last.imagesData['$firstSrc'] || favHref
+					});
+					notif.onshow = function() {
+						setTimeout(this.close.bind(this), 12e3);
+					};
+					notif.onclick = function() {
+						window.focus();
+					};
+					notif.onerror = function() {
+						window.focus();
+						requestNotifPermission();
+					};
 				}
 				if(hasAudio && !audioRun) {
 					if(audioRep) {
@@ -9053,22 +8992,22 @@ function initThreadUpdater(title, enableUpdater) {
 			$del($q('link[rel="shortcut icon"]', doc.head));
 			doc.head.insertAdjacentHTML('afterbegin', '<link rel="shortcut icon" href="' + favHref + '">');
 		}
+		focused = true;
+		newPosts = 0;
 		setTimeout(function() {
-			doc.title = title;
+			setTitle(title);
+			if(enabled) {
+				clearTimeout(loadTO);
+				delay = initDelay;
+				loadPostsFun();
+			}
 		}, 200);
-		if(enabled) {
-			focused = true;
-			newPosts = 0;
-			delay = initDelay;
-			clearTimeout(loadTO);
-			loadPostsFun();
-		}
 	}
 
 	function setTitle(nTitle) {
 		title = nTitle;
-		doc.title = (lastECode === 200 ? '' : '{' + eCode + '} ') +
-			(newPosts === 0 ? '' : ' [' + newPosts + '] ') + title;
+		doc.title = (lastECode === 200 ? '' : '{' + lastECode + '} ') +
+			(newPosts === 0 ? '' : '[' + newPosts + '] ') + title;
 	}
 
 	function addPlayingTag() {
@@ -9120,7 +9059,7 @@ function initPage() {
 	} else {
 		setTimeout(window.scrollTo, 20, 0, 0);
 	}
-	updater = new initThreadUpdater(doc.title, TNum && Cfg['updThread'] === 1);
+	updater = initThreadUpdater(doc.title, TNum && Cfg['updThread'] === 1);
 }
 
 //============================================================================================================
@@ -9329,6 +9268,9 @@ function doScript() {
 	}
 	$log('Init');
 	readCfg();
+	spells = new Spells(!!Cfg['hideBySpell']);
+	youTube = initYouTube(Cfg['addYouTube'], Cfg['YTubeType'], Cfg['YTubeWidth'], Cfg['YTubeHeigh'],
+		Cfg['YTubeHD'], Cfg['YTubeTitles']);
 	readFavorites();
 	readPosts();
 	$log('Read config');
