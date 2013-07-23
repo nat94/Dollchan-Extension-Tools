@@ -7680,7 +7680,7 @@ ImageBoard.prototype = {
 			formButtons: { get: function() {
 				return {
 					'id': ['bold', 'italic', 'under', 'strike', 'spoil', 'code', 'sup', 'sub', 'quote', 'aa', 'emoticon'],
-					'val': ['B', 'i', 'U', 'S', '%', 'C', 'v', '^', '&gt;', 'aa', '_'],
+					'val': ['b', 'i', 'u', 's', 'spoiler', 'code', 'v', '^', '&gt;', 'aa', '&#9786;'],
 					'tag': ['b', 'i', 'u', 's', 'spoiler', 'code', '', '', 'q', 'aa', '_'],
 					'bb': [true, true, true, true, true, true, true, true, false, true, false]
 				};
