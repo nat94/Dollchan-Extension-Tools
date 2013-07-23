@@ -9168,7 +9168,9 @@ function formatAttentionBarContent(content) {
 
 function setAttentionBarContent(container, content, doCleanInput) {
 	var formattedContent = formatAttentionBarContent(content);
-	$id('attentionBox').innerHTML = formattedContent;
+	var attentionBox = $id('attentionBox');
+	attentionBox.innerHTML = formattedContent;
+	attentionBox.scrollTop = attentionBox.scrollHeight;
 	$id('attentionPrevContent').innerHTML = content;
 	if(doCleanInput) {
 		$id('attentionInput').value = '';
