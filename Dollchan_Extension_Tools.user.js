@@ -7664,17 +7664,29 @@ ImageBoard.prototype = {
 				hiddenInput: null,
 				clearMsg: 'wyczyść pasek',
 				setAttentionBarLocation: function(attentionBar) {
-					var dancingPope = $t('embed', document);
-					if(dancingPope) {
-						$after(dancingPope.parentNode, attentionBar);
+					if(Cfg['attBarStyle']) {
+						var dancingPope = $t('embed', document);
+						if(dancingPope) {
+							$after(dancingPope.parentNode, attentionBar);
+						} else {
+							$after($c('logo', document), attentionBar);
+						}
 					} else {
-						$after($c('logo', document), attentionBar);
+						$before($c('postarea', document), attentionBar);
 					}
 				}
 			} },
 			dontSubstThrId: { value: true },
 			init: { value: function() {
 				$each(document.getElementsByClassName('fileinfo'), function(node) { node.setAttribute('class', 'filesize'); } );
+				var radioBanner = $q('[alt="Radio Kiwi"]', document);
+				if(radioBanner) {
+					$before($c('postarea', document), radioBanner.parentNode);
+				}
+				var replyModeDiv = $c('replymode', document);
+				if(replyModeDiv) {
+					$attr(replyModeDiv, {style: 'display: none'} );
+				}
 			} },
 			qImgLink: { value: '.filesize > a,.file_thread a' },
 			formButtons: { get: function() {
