@@ -9188,7 +9188,8 @@ function setNormalAttentionBarStyle() {
 		'width': '100%',
 		'scrolling': 'no',
 		'height': '20px',
-		'frameborder': '0'
+		'frameborder': '0',
+		'class': 'reply'
 	});
 	aib.attentionBar.setAttentionBarLocation(container);
 }
