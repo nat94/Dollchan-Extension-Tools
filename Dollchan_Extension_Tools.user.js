@@ -7799,7 +7799,9 @@ ImageBoard.prototype = {
 				$each(document.getElementsByClassName('fileinfo'), function(node) { node.setAttribute('class', 'filesize'); } );
 				var radioBanner = $q('[alt="Radio Kiwi"]', document);
 				if(radioBanner) {
-					$before($c('postarea', document), radioBanner.parentNode);
+					radioBanner.parentNode.removeAttribute('style');
+					var firstHr = $t('hr', document);
+					$after(firstHr, radioBanner.parentNode);
 				}
 				var replyModeDiv = $c('replymode', document);
 				if(replyModeDiv) {
