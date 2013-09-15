@@ -27,7 +27,7 @@ defaultCfg = {
 	'desktNotif':	0,		//		desktop notifications, if new posts detected
 	'addUpdBtn':	0,		// add update thread button
 	'expandPosts':	2,		// expand shorted posts [0=off, 1=auto, 2=on click]
-	'postBtnsTxt':	0,		// show post buttons as text
+	'postBtnsCSS':	2,		// post buttons style [0=text, 1=classic, 2=solid grey]
 	'noSpoilers':	1,		// open spoilers
 	'noPostNames':	0,		// hide post names
 	'noPostScrl':	1,		// no scroll in posts
@@ -115,7 +115,10 @@ Lng = {
 			sel:		[['Откл.', 'Авто', 'По клику'], ['Disable', 'Auto', 'On click']],
 			txt:		['AJAX загрузка сокращенных постов*', 'AJAX upload of shorted posts*']
 		},
-		'postBtnsTxt':	['Кнопки постов в виде текста*', 'Show post buttons as text*'],
+		'postBtnsCSS': {
+			sel:		[['Text', 'Classic', 'Solid grey'], ['Text', 'Classic', 'Solid grey']],
+			txt:		['Стиль кнопок постов*', 'Post buttons style*']
+		},
 		'noSpoilers':	['Открывать текстовые спойлеры', 'Open text spoilers'],
 		'noPostNames':	['Скрывать имена в постах', 'Hide names in posts'],
 		'noPostScrl':	['Без скролла в постах', 'No scroll in posts'],
@@ -315,8 +318,8 @@ Lng = {
 	},
 
 	newPost:		[
-		['. Последний:', ' новый пост', ' новых постов', ' новых поста'],
-		['. Latest: ', ' new post', ' new posts', ' new posts']
+		[' новый пост', ' новых поста', ' новых постов', '. Последний:'],
+		[' new post', ' new posts', ' new posts', '. Latest: ']
 	],
 
 	postingTypes: [
@@ -655,10 +658,45 @@ $queue.prototype = {
 };
 
 function $tar() {
-	this.data = [];
+	this._data = [];
 }
 $tar.prototype = {
-	padSet: function(data, offset, num, len) {
+	addFile: function(filepath, input) {
+		var i, checksum, nameLen, fileSize = input.length,
+			header = new Uint8Array(512);
+		for(i = 0, nameLen = Math.min(filepath.length, 100); i < nameLen; ++i) {
+			header[i] = filepath.charCodeAt(i) & 0xFF;
+		}
+		this._padSet(header, 100, '100777', 8);										// fileMode
+		this._padSet(header, 108, '0', 8);											// uid
+		this._padSet(header, 116, '0', 8);											// gid
+		this._padSet(header, 124, fileSize.toString(8), 13);						// fileSize
+		this._padSet(header, 136, Math.floor(Date.now() / 1000).toString(8), 12);	// mtime
+		this._padSet(header, 148, '        ', 8);									// checksum
+		header[156] = 0x30;															// type ('0')
+		for(i = checksum = 0; i < 157; i++) {
+			checksum += header[i];
+		}
+		this._padSet(header, 148, checksum.toString(8), 8);							// checksum
+		this._data.push(header);
+		this._data.push(input);
+		if((i = Math.ceil(fileSize / 512) * 512 - fileSize) !== 0) {
+			this.data.push(new Uint8Array(i));
+		}
+	},
+	addString: function(filepath, str) {
+		var i, len, data, sDat = unescape(encodeURIComponent(str));
+		for(i = 0, len = sDat.length, data = new Uint8Array(len); i < len; ++i) {
+			data[i] = sDat.charCodeAt(i) & 0xFF;
+		}
+		this.addFile(filepath, data);
+	},
+	get: function() {
+		this._data.push(new Uint8Array(1024));
+		return new Blob(this._data, {'type': 'application/x-tar'});
+	},
+
+	_padSet: function(data, offset, num, len) {
 		var i = 0, nLen = num.length;
 		len -= 2;
 		while(nLen < len) {
@@ -669,43 +707,6 @@ $tar.prototype = {
 			data[offset++] = num.charCodeAt(i++);
 		}
 		data[offset] = 0x20; // ' '
-	},
-	addString: function(filepath, str) {
-		this.addFile(filepath, new Uint8Array(unescape(encodeURIComponent(str)).split('').map(function(a) {
-			return a.charCodeAt();
-		})));
-	},
-	addFile: function(filepath, input) {
-		var i, checksum, nameLen = filepath.length,
-			fileSize = input.length,
-			header = new Uint8Array(512);
-		if(nameLen > 99) {
-			nameLen = 100;
-			filepath = filepath.substring(0, 99);
-		}
-		for(i = 0; i < nameLen; i++) {
-			header[i] = filepath.charCodeAt(i) & 0xFF;
-		}
-		this.padSet(header, 100, '100777', 8);										// fileMode
-		this.padSet(header, 108, '0', 8);											// uid
-		this.padSet(header, 116, '0', 8);											// gid
-		this.padSet(header, 124, fileSize.toString(8), 13);							// fileSize
-		this.padSet(header, 136, Math.floor(Date.now() / 1000).toString(8), 12);	// mtime
-		this.padSet(header, 148, '        ', 8);									// checksum
-		header[156] = 0x30;															// type ('0')
-		for(i = checksum = 0; i < 157; i++) {
-			checksum += header[i];
-		}
-		this.padSet(header, 148, checksum.toString(8), 8);							// checksum
-		this.data.push(header);
-		this.data.push(input);
-		if((i = Math.ceil(fileSize / 512) * 512 - fileSize) !== 0) {
-			this.data.push(new Uint8Array(i));
-		}
-	},
-	get: function() {
-		this.data.push(new Uint8Array(1024));
-		return new Blob(this.data, {'type': 'application/x-tar'});
 	}
 };
 
@@ -1124,9 +1125,9 @@ function addPanel() {
 		case 'de-btn-audio-off':
 			if(updater.toggleAudio(0)) {
 				updater.enable();
-				this.id = 'de-btn-audio-on';
+				e.target.id = 'de-btn-audio-on';
 			} else {
-				this.id = 'de-btn-audio-off';
+				e.target.id = 'de-btn-audio-off';
 			}
 			$del($c('de-menu', doc));
 			break;
@@ -1551,7 +1552,7 @@ function cfgTab(name) {
 
 function updRowMeter() {
 	var str, top = this.scrollTop,
-		el = $id('de-spell-rowmeter'),
+		el = this.parentNode.previousSibling.firstChild,
 		num = el.numLines || 1,
 		i = 15;
 	if(num - i < ((top / 12) | 0 + 1)) {
@@ -1643,7 +1644,7 @@ function getCfgPosts() {
 			Thread.processUpdBtn(Cfg['addUpdBtn']);
 		} : null),
 		optSel('expandPosts', true, null),
-		lBox('postBtnsTxt', true, null),
+		optSel('postBtnsCSS', true, null),
 		lBox('noSpoilers', true, updateCSS),
 		lBox('noPostNames', true, updateCSS),
 		lBox('noPostScrl', true, updateCSS),
@@ -1962,8 +1963,7 @@ function addSettings(Set) {
 		])
 	]));
 	$c('de-cfg-tab', Set).click();
-	$id('de-spell-edit').setSelectionRange(0, 0);
-	updRowMeter();
+	updRowMeter.call($id('de-spell-edit'));
 }
 
 
@@ -2797,6 +2797,7 @@ function preloadImages(post) {
 			} else if(nExp) {
 				el.src = url;
 			}
+			el.classList.add('de-img-pre');
 		}
 	}
 	queue && queue.complete();
@@ -3498,12 +3499,12 @@ function Spells(read) {
 }
 Spells.checkArr = function(val, num) {
 	var i, arr;
-	for(arr = val[0], i = arr.length - 1; i >= 0; i--) {
+	for(arr = val[0], i = arr.length - 1; i >= 0; --i) {
 		if(arr[i] === num) {
 			return true;
 		}
 	}
-	for(arr = val[1], i = arr.length - 1; i >= 0; i--) {
+	for(arr = val[1], i = arr.length - 1; i >= 0; --i) {
 		if(num >= arr[i][0] && num <= arr[i][1]) {
 			return true;
 		}
@@ -4508,7 +4509,7 @@ Spells.prototype = {
 				this._completeFns = [];
 				this._hasComplFns = false;
 			}
-		} else {
+		} else if(Fn) {
 			this.addCompleteFunc(Fn);
 		}
 	},
@@ -4763,10 +4764,22 @@ function scriptCSS() {
 		.de-thread-note { font-style: italic; }\
 		.de-post-note { color: inherit; margin: 0 4px; vertical-align: 1px; font: italic bold 12px serif; }\
 		.de-btn-hide, .de-btn-hide-user, .de-btn-rep, .de-btn-fav, .de-btn-fav-sel, .de-btn-src, .de-btn-expthr, .de-btn-sage { display: inline-block; margin: 0 4px -2px 0 !important; cursor: pointer; ';
-	if(!Cfg['postBtnsTxt']) {
+	if(Cfg['postBtnsCSS'] === 0) {
+		x += 'color: #4F7942; font-size: 14px; }\
+			.de-btn-hide:after { content: "\u2716"; }\
+			.de-post-hid .de-btn-hide:after { content: "\u271a"; }\
+			.de-btn-hide-user:after { content: "\u2716"; color: red !important; }\
+			.de-post-hid .de-btn-hide-user:after { content: "\u271a"; }\
+			.de-btn-rep:after { content: "\u25b6"; }\
+			.de-btn-expthr:after { content: "\u21d5"; }\
+			.de-btn-fav:after { content: "\u2605"; }\
+			.de-btn-fav-sel:after { content: "[\u2605]"; }\
+			.de-btn-sage:after { content: "\u274e"; }\
+			.de-btn-src:after { content: "[S]"; }';
+	} else if(Cfg['postBtnsCSS'] === 1) {
 		x += 'padding: 0 14px 14px 0; }';
-		gif('.de-btn-hide-user','R0lGODlhDgAOAKIAAL//v6CgoICAgEtLS////wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AQAM8SLLcS2MNQGsUMYi6uB5BKI5hFgojel5YBbDDNcmvpJLkcgLq1jcuSgPmgkUmlJgFAyqNmoEBJEatxggJADs=');
-		gif('.de-post-hid .de-btn-hide-user','R0lGODlhDgAOAKIAAP+/v6CgoICAgEtLS////wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AQAM5SLLcS2ONCcCMIoYdRBVcN4Qkp4ULmWVV20ZTM1SYBJbqvXmA3jk8IMzlgtVYFtkoNCENIJdolJAAADs=');
+		gif('.de-btn-hide-user', 'R0lGODlhDgAOAKIAAL//v6CgoICAgEtLS////wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AQAM8SLLcS2MNQGsUMYi6uB5BKI5hFgojel5YBbDDNcmvpJLkcgLq1jcuSgPmgkUmlJgFAyqNmoEBJEatxggJADs=');
+		gif('.de-post-hid .de-btn-hide-user', 'R0lGODlhDgAOAKIAAP+/v6CgoICAgEtLS////wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AQAM5SLLcS2ONCcCMIoYdRBVcN4Qkp4ULmWVV20ZTM1SYBJbqvXmA3jk8IMzlgtVYFtkoNCENIJdolJAAADs=');
 		p = 'R0lGODlhDgAOAKIAAPDw8KCgoICAgEtLS////wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AQAM';
 		gif('.de-btn-hide', p + '8SLLcS2MNQGsUMYi6uB5BKI5hFgojel5YBbDDNcmvpJLkcgLq1jcuSgPmgkUmlJgFAyqNmoEBJEatxggJADs=');
 		gif('.de-post-hid .de-btn-hide', p + '5SLLcS2ONCcCMIoYdRBVcN4Qkp4ULmWVV20ZTM1SYBJbqvXmA3jk8IMzlgtVYFtkoNCENIJdolJAAADs=');
@@ -4777,17 +4790,18 @@ function scriptCSS() {
 		gif('.de-btn-sage', 'R0lGODlhDgAOAJEAAPDw8EtLS////wAAACH5BAEAAAIALAAAAAAOAA4AQAIZVI55duDvFIKy2vluoJfrD4Yi5lWRwmhCAQA7');
 		gif('.de-btn-src', p + '9SLLcS0MMQMesUoQg6PKbtFnDaI0a53VAml2ARcVSFC0WY6ecyy+hFajnWDVssyQtB5NhTs1mYAAhWa2EBAA7');
 	} else {
-		x += 'color: #4F7942; font-size: 14px; }\
-			.de-btn-hide:after { content: "\u2716"; }\
-			.de-post-hid .de-btn-hide:after { content: "\u271a"; }\
-			.de-btn-hide-user:after { content: "[\u2716]"; }\
-			.de-post-hid .de-btn-hide-user:after { content: "[\u271a]"; }\
-			.de-btn-rep:after { content: "\u25b6"; }\
-			.de-btn-expthr:after { content: "\u21d5"; }\
-			.de-btn-fav:after { content: "\u2605"; }\
-			.de-btn-fav-sel:after { content: "[\u2605]"; }\
-			.de-btn-sage:after { content: "\u274e"; }\
-			.de-btn-src:after { content: "[S]"; }';
+		x += 'padding: 0 14px 14px 0; }';
+		gif('.de-btn-hide-user', 'R0lGODlhDgAOAJEAAL//v4yMjP///wAAACH5BAEAAAIALAAAAAAOAA4AAAIdVI55pu2vQJIN2GNpzPdxGHwep01d5pQlyDoMKBQAOw==');
+		gif('.de-post-hid .de-btn-hide-user', 'R0lGODlhDgAOAJEAAP+/v4yMjP///wAAACH5BAEAAAIALAAAAAAOAA4AAAIZVI55pu3vAIBI0mOf3LtxDmWUGE7XSTFpAQA7 ');
+		p = 'R0lGODlhDgAOAJEAAPDw8IyMjP///wAAACH5BAEAAAIALAAAAAAOAA4AAAI';
+		gif('.de-btn-hide', p + 'dVI55pu2vQJIN2GNpzPdxGHwep01d5pQlyDoMKBQAOw==');
+		gif('.de-post-hid .de-btn-hide', p + 'ZVI55pu3vAIBI0mOf3LtxDmWUGE7XSTFpAQA7');
+		gif('.de-btn-rep', p + 'aVI55pu2vAIBISmrty7rx63FbN1LmiTCUUAAAOw==');
+		gif('.de-btn-expthr', p + 'bVI55pu0BwEMxzlonlHp331kXxjlYWH4KowkFADs=');
+		gif('.de-btn-fav', p + 'dVI55pu0BwEtxnlgb3ljxrnHP54AgJSGZxT6MJRQAOw==');
+		gif('.de-btn-fav-sel','R0lGODlhDgAOAJEAAP/hAIyMjP///wAAACH5BAEAAAIALAAAAAAOAA4AAAIdVI55pu0BwEtxnlgb3ljxrnHP54AgJSGZxT6MJRQAOw==');
+		gif('.de-btn-sage','R0lGODlhDgAOAJEAAPDw8FBQUP///wAAACH5BAEAAAIALAAAAAAOAA4AAAIZVI55pu0AgZs0SoqTzdnu5l1P1ImcwmBCAQA7');
+		gif('.de-btn-src', p + 'fVI55pt0ADnRh1uispfvpLkEieGGiZ5IUGmJrw7xCAQA7');
 	}
 	if(!pr.form && !pr.oeForm) {
 		x += '.de-btn-rep { display: none; }';
@@ -5288,8 +5302,8 @@ PostForm.prototype = {
 	},
 	refreshCapImg: function(tNum, isFocus) {
 		var src, img;
-		if(aib.abu) {
-			aib.updateCap(isFocus);
+		if(aib.abu && (img = $id('captcha_div'))) {
+			img.onclick(isFocus, true);
 			return;
 		}
 		if(!this.cap || (aib.krau && !$q('input[name="captcha_name"]', this.form).hasAttribute('value'))) {
@@ -7065,7 +7079,7 @@ function Pview(parent, link, tNum, pNum) {
 	this.parent = parent;
 	this._link = link;
 	this.num = pNum;
-	if(post && (!post.inited || !post.isOp || TNum)) {
+	if(post && (!post.inited || !post.isOp || TNum || post.thr.loadedOnce)) {
 		this._showPost(post);
 	} else {
 		b = link.pathname.match(/^\/?(.+\/)/)[1].replace(aib.res, '').replace(/\/$/, '');
@@ -7588,20 +7602,21 @@ Thread.prototype = {
 	},
 
 	_addPost: function(parent, el, num, i, prev) {
-		var pst, node, post = new Post(el, this, num, i).init(prev);
+		var wrap, node, post = new Post(el, this, num, i).init(prev);
 		pByNum[num] = post;
 		if(postWrapper) {
-			pst = postWrapper.cloneNode(true);
-			node = aib.getPosts(pst)[0];
+			wrap = postWrapper.cloneNode(true);
+			node = aib.getPosts(wrap)[0];
 			if(node) {
 				node.parentNode.replaceChild(el, node);
 			} else {
-				pst = el;
+				wrap = el;
 			}
 		} else {
-			pst = el;
+			wrap = el;
 		}
-		aib.appendPost(pst, parent);
+		Object.defineProperty(post, 'wrap', { value: wrap });
+		aib.appendPost(wrap, parent);
 		youTube.parseLinks(post);
 		if(Cfg['imgSrcBtns']) {
 			addImagesSearch(el);
@@ -7650,13 +7665,14 @@ Thread.prototype = {
 		visPosts = Math.max(visPosts, len);
 	},
 	_parsePosts: function(nPosts, from, omt) {
-		var i, len, el, cnt, tPost, fragm, newPosts = 0,
+		var i, len, el, tPost, fragm, newPosts = 0,
+			cnt = 1,
 			firstDelPost = null,
 			rerunSpells = spells.hasNumSpell,
 			spellsRunned = false,
 			post = this.op.nextNotDeleted;
 		for(i = 0, len = nPosts.length; i <= len && post; ) {
-			if(post.count - 1 === i) {
+			if(post.count - cnt === i) {
 				if(i >= len || post.num !== aib.getPNum(nPosts[i])) {
 					if(!firstDelPost) {
 						firstDelPost = post;
@@ -7686,6 +7702,7 @@ Thread.prototype = {
 					for(tPost = post.nextInThread; tPost; tPost = tPost.nextInThread) {
 						tPost.count--;
 					}
+					cnt++;
 				} else {
 					if(i < from) {
 						if(i >= omt) {
@@ -7708,6 +7725,7 @@ Thread.prototype = {
 						aib.getPNum(el), i + 1, tPost);
 					spells.check(tPost);
 				}
+				cnt = 1;
 				$after(this.op.el, fragm);
 				tPost.next = post;
 				post.prev = tPost;
@@ -8219,7 +8237,7 @@ ImageBoard.prototype = {
 		}, 'script[src*="kusaba"]']
 	},
 	_bEngines: {
-		'#ABU_css': {
+		'#ABU_css, #ShowLakeSettings': {
 			formButtons: { get: function() {
 				return Object.create(this._formButtons, {
 					tag: { value: ['b', 'i', 'u', 's', 'spoiler', 'code', 'sup', 'sub', 'q'] }
@@ -8239,37 +8257,29 @@ ImageBoard.prototype = {
 				}
 				return this.getSage(post);
 			} },
-			css: { value: '.de-post-hid > .de-ppanel ~ *, .ABU_refmap, .postpanel, #CommentToolbar, #usrFlds + tbody > tr:first-child, #postform > div:nth-child(2), #BottomNormalReply, body > center, .logo + div { display: none !important; }\
+			css: { value: '#ABU_alert_wait, .de-post-hid > .de-ppanel ~ *, .ABU_refmap, .postpanel, #CommentToolbar, #usrFlds + tbody > tr:first-child, #postform > div:nth-child(2), #BottomNormalReply, body > center, .logo + div { display: none !important; }\
 				#de-txt-panel { font-size: 16px !important; }\
 				.de-abtn { transition: none; }\
 				.reflink:before { content: none !important; }' },
 			isBB: { value: true },
 			init: { value: function() {
-				var cd = $id('captcha_div');
-				if(cd) {
-					cd.addEventListener('click', function(e) {
-						switch(e.target.tagName) {
-						case 'IMG':
-						case 'P':
-							this.updateCap(true);
-							$pd(e);
-							e.stopPropagation();
-						}
-					}.bind(this), true);
+				var cd = $id('captcha_div'),
+					img = cd && $t('img', cd);
+				if(img) {
+					cd.setAttribute('onclick', ['var i = 4, el;',
+						"if(!arguments[1] && event.target.tagName !== 'IMG') {",
+							'return;',
+						'}',
+						'do {', img.getAttribute('onclick'), '} while(--i > 0 && !/<img|не нужно/i.test(this.innerHTML));',
+						"if(el = this.getElementsByTagName('img')[0]) {",
+							"el.removeAttribute('onclick');",
+							"if(event && (el = this.querySelector('input[type=\\'text\\']'))) {",
+								'el.focus();',
+							'}',
+						'}'
+					].join(''));
+					img.removeAttribute('onclick');
 				}
-			} },
-			updateCap: { value: function(focus) {
-				$script('var i = 4, el, cd = document.getElementById("captcha_div");\
-					do {\
-						GetCaptcha("captcha_div", true);\
-						i--;\
-					} while(i > 0 && !/<img|не нужно/i.test(cd.innerHTML));' + (!focus ? '' :
-						'el = cd.querySelector("input[type=\\"text\\"]");\
-						if(el) {\
-							el.focus();\
-						}'
-					), true
-				);
 			} },
 
 			abu: { value: true }
@@ -8388,7 +8398,7 @@ ImageBoard.prototype = {
 			ru: { value: true },
 			init: { value: function() {
 				if(window.location.pathname === '/settings') {
-					nav = new Navigator();
+					nav = getNavFuncs();
 					$q('input[type="button"]', doc).addEventListener('click', function() {
 						readCfg();
 						saveCfg('__hanarating', $id('rating').value);
@@ -8577,8 +8587,7 @@ ImageBoard.prototype = {
 //													BROWSER
 //============================================================================================================
 
-function Navigator() {
-	var ua = window.navigator.userAgent;
+function getNavFuncs() {
 	if(!('contains' in String.prototype)) {
 		String.prototype.contains = function(s) {
 			return this.indexOf(s) !== -1;
@@ -8595,32 +8604,18 @@ function Navigator() {
 	if('toJSON' in aProto) {
 		delete aProto.toJSON;
 	}
-	this.Firefox = +(ua.match(/mozilla.*? rv:(\d+)/i) || [,0])[1];
-	this.Opera = window.opera ? +window.opera.version() : 0;
-	this.WebKit = ua.contains('WebKit/');
-	this.Chrome = this.WebKit && ua.contains('Chrome/');
-	this.Safari = this.WebKit && !this.Chrome;
-	this.isGM = typeof GM_setValue === 'function' &&
-		(!this.Chrome || !GM_setValue.toString().contains('not supported'));
-	this.isGlobal = this.isGM || !!scriptStorage;
-	this.cssFix =
-		this.WebKit ? '-webkit-' :
-		this.Opera ? (this.Opera < 12.1 ? '-o-' : '') :
-		this.Firefox && this.Firefox < 16 ? '-moz-' : '';
-	if(!this.Opera || this.Opera >= 12) {
-		this.Anim = true;
-		this.animName =
-			this.WebKit ? 'webkitAnimationName' :
-			this.Opera && this.Opera < 12.1 ? 'OAnimationName' :
-			this.Firefox && this.Firefox < 16 ? 'MozAnimationName' :
-			'animationName';
-		this.animEnd =
-			this.WebKit ? 'webkitAnimationEnd' :
-			this.Opera && this.Opera < 12.1 ? 'oAnimationEnd' :
-			'animationend';
+	if(!('URL' in window)) {
+		window.URL = window.webkitURL;
 	}
-	this.isBlob = this.Firefox > 14 || this.Chrome || this.Opera >= 12.10;
-	if(this.Firefox > 19) {
+	var ua = window.navigator.userAgent,
+		firefox = +(ua.match(/mozilla.*? rv:(\d+)/i) || [,0])[1],
+		opera = window.opera ? +window.opera.version() : 0,
+		webkit = ua.contains('WebKit/'),
+		chrome = webkit && ua.contains('Chrome/'),
+		safari = webkit && !chrome,
+		isGM = typeof GM_setValue === 'function' && 
+			(!chrome || !GM_setValue.toString().contains('not supported'));
+	if(firefox > 19) {
 		$script(
 			'window["de-worker"] = function(url) {\
 				this.wrk = new Worker(url);\
@@ -8638,68 +8633,73 @@ function Navigator() {
 			};', false
 		);
 	}
-	this.fixLink = this.Safari ? getAbsLink : function fixLink(url) {
-		return url;
-	};
-	this.toDOM =
-		this.Firefox ? function toDOM(html) {
+	if(!window.GM_xmlhttpRequest) {
+		window.GM_xmlhttpRequest = $xhr;
+	}
+	return {
+		Firefox: firefox,
+		Opera: opera,
+		WebKit: webkit,
+		Chrome: chrome,
+		Safari: safari,
+		isGM: isGM,
+		isGlobal: isGM || !!scriptStorage,
+		cssFix: webkit ? '-webkit-' : opera && opera < 12.1 ? '-o-' : firefox && firefox < 16 ? '-moz-' : '',
+		Anim: !opera || opera >= 12,
+		animName: webkit ? 'webkitAnimationName' : opera && opera < 12.1 ? 'OAnimationName' :
+			firefox && firefox < 16 ? 'MozAnimationName' : 'animationName',
+		animEnd: webkit ? 'webkitAnimationEnd' : opera && opera < 12.1 ? 'oAnimationEnd' :
+			'animationend',
+		animEvent: function(el, Fn) {
+			el.addEventListener(this.animEnd, function aEvent() {
+				this.removeEventListener(nav.animEnd, aEvent, false);
+				Fn(this);
+				Fn = null;
+			}, false);
+		},
+		isBlob: firefox > 14 || chrome || opera >= 12.10,
+		fixLink: safari ? getAbsLink : function fixLink(url) {
+			return url;
+		},
+		toDOM: firefox ? function toDOM(html) {
 			return new DOMParser().parseFromString(html, 'text/html');
 		} : function toDOM(html) {
 			var myDoc = doc.implementation.createHTMLDocument('');
 			myDoc.documentElement.innerHTML = html;
 			return myDoc;
-		};
-	if(!window.GM_log) {
-		window.GM_log = function(msg) {
-			console.error(msg);
-		};
-	}
-	if(!window.GM_xmlhttpRequest) {
-		window.GM_xmlhttpRequest = $xhr;
-	}
-	if(this.WebKit) {
-		window.URL = window.webkitURL;
-	}
-}
-Navigator.prototype = {
-	animEvent: function(el, Fn) {
-		el.addEventListener(nav.animEnd, function aEvent() {
-			this.removeEventListener(nav.animEnd, aEvent, false);
-			Fn(this);
-			Fn = null;
-		}, false);
-	},
-	get canPlayMP3() {
-		var val = !!new Audio().canPlayType('audio/mp3; codecs="mp3"');
-		Object.defineProperty(this, 'canPlayMP3', { value: val });
-		return val;
-	},
-	get matchesSelector() {
-		var dE = doc.documentElement,
-			fun = dE.matchesSelector || dE.mozMatchesSelector ||
-				dE.webkitMatchesSelector || dE.oMatchesSelector,
-			val = Function.prototype.call.bind(fun);
-		Object.defineProperty(this, 'matchesSelector', { value: val });
-		return val;
-	},
-	get Worker() {
-		var val;
-		if(nav.Firefox && nav.Firefox > 19) {
-			if(unsafeWindow['de-worker']) {
-				val = new Proxy(unsafeWindow['de-worker'], {});
-				val.prototype.postMessage = function() {
-					unsafeWindow['de-worker-proto']._postMessage.apply(this, arguments);
-				};
+		},
+		get canPlayMP3() {
+			var val = !!new Audio().canPlayType('audio/mp3; codecs="mp3"');
+			Object.defineProperty(this, 'canPlayMP3', { value: val });
+			return val;
+		},
+		get matchesSelector() {
+			var dE = doc.documentElement,
+				fun = dE.matchesSelector || dE.mozMatchesSelector ||
+					dE.webkitMatchesSelector || dE.oMatchesSelector,
+				val = Function.prototype.call.bind(fun);
+			Object.defineProperty(this, 'matchesSelector', { value: val });
+			return val;
+		},
+		get Worker() {
+			var val;
+			if(nav.Firefox && nav.Firefox > 19) {
+				if(unsafeWindow['de-worker']) {
+					val = new Proxy(unsafeWindow['de-worker'], {});
+					val.prototype.postMessage = function() {
+						unsafeWindow['de-worker-proto']._postMessage.apply(this, arguments);
+					};
+				} else {
+					val = null;
+				}
 			} else {
-				val = null;
+				val = window.Worker;
 			}
-		} else {
-			val = window.Worker;
+			Object.defineProperty(this, 'Worker', { value: val });
+			return val;
 		}
-		Object.defineProperty(this, 'Worker', { value: val });
-		return val;
-	}
-};
+	};
+}
 
 
 //============================================================================================================
@@ -8736,7 +8736,7 @@ function Initialization() {
 	if(!dForm || $id('de-panel')) {
 		return false;
 	}
-	nav = new Navigator();
+	nav = getNavFuncs();
 
 	window.addEventListener('storage', function(e) {
 		var data, temp, post, val = e.newValue;
@@ -9060,28 +9060,6 @@ function initThreadUpdater(title, enableUpdater) {
 		}
 	}
 
-	function getNotifTitle(np) {
-		var rv = aib.dm + '/' + brd + '/' + TNum + ': ' + np;
-		switch(np % 10) {
-		case 1:
-			if(lang === 0) {
-				rv += Lng.newPost[lang][np % 100 === 11 ? 2 : 1];
-			} else {
-				rv += Lng.newPost[lang][1];
-			}
-			break;
-		case 2:
-		case 3:
-		case 4:
-			if(lang === 0 && Math.floor((np % 100) / 10) !== 1) {
-				rv += Lng.newPost[lang][3];
-				break;
-			}
-		default: rv += Lng.newPost[lang][2];
-		}
-		return rv + Lng.newPost[lang][0];
-	}
-
 	function requestNotifPermission() {
 		notifGranted = false;
 		Notification.requestPermission(function(state) {
@@ -9133,7 +9111,11 @@ function initThreadUpdater(title, enableUpdater) {
 				newPosts += lPosts;
 				updateTitle();
 				if(Cfg['desktNotif'] && notifGranted) {
-					var notif = new Notification(getNotifTitle(newPosts), {
+					var notif = new Notification(aib.dm + '/' + brd + '/' + TNum + ': ' + newPosts +
+						Lng.newPost[lang][lang !== 0 ? +(newPosts !== 1) : (newPosts % 10) > 4 ||
+						(newPosts % 10) === 0 || (((newPosts % 100) / 10) | 0) === 1 ? 2 :
+						(newPosts % 10) === 1 ? 0 : 1] + Lng.newPost[lang][3],
+					{
 						'body': firstThr.last.text.substring(0, 250).replace(/\s+/g, ' '),
 						'tag': aib.dm + brd + TNum,
 						'icon': firstThr.last.imagesData['$firstSrc'] || favHref
@@ -9498,7 +9480,7 @@ function doScript() {
 	timeLog.push(Lng.total[lang] + (Date.now() - initTime) + 'ms');
 }
 
-if(/interactive|complete/.test(doc.readyState)) {
+if(doc.readyState === 'interactive' || doc.readyState === 'complete') {
 	doScript();
 } else {
 	doc.addEventListener('DOMContentLoaded', doScript, false);
