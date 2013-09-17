@@ -9267,6 +9267,9 @@ function findContentInResponse(response) {
 		content = response.substr(midPos, endPos - midPos);
 	}
 	content = content.replace(/(\r\n|\n|\r)/gm, '');
+	var conversionHelper = $new('div', null, null);
+	conversionHelper.innerHTML = content;
+	content = conversionHelper.childNodes[0].nodeValue;
 	return content;
 }
 
