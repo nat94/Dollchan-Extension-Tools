@@ -9267,9 +9267,6 @@ function findContentInResponse(response) {
 		content = response.substr(midPos, endPos - midPos);
 	}
 	content = content.replace(/(\r\n|\n|\r)/gm, '');
-	var conversionHelper = $new('div', null, null);
-	conversionHelper.innerHTML = content;
-	content = conversionHelper.childNodes[0].nodeValue;
 	return content;
 }
 
@@ -9295,7 +9292,14 @@ function getAttentionBarContent(callback) {
 }
 
 function postAttentionBarContent(content, callback) {
-	var encoded = encodeURIComponent(content);
+	var encoded = null;
+	if(content != null && content.length > 0) {
+		var conversionHelper = $new('div', null, null);
+		conversionHelper.innerHTML = content;
+		encoded = encodeURIComponent(conversionHelper.childNodes[0].nodeValue);
+	} else {
+		encoded = "";
+	}
 	while(encoded.length > aib.attentionBar.barLength && encoded.indexOf('%7C') > 0) {
 		encoded = encoded.substr(encoded.indexOf('%7C') + 3);
 	}
